@@ -39,6 +39,11 @@ def get_constants():
 
 @app.route('/api/planner')
 def get_planner_data():
+    """Run capacity analysis using the planner and return the results.
+    
+    Returns:
+        JSON response containing the captured output from the capacity analysis.
+    """
     # Create a planner instance and run analysis
     output = capture_output(planner.analyze_capacity)
     return jsonify({"output": output})
