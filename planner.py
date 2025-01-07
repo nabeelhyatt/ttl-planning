@@ -150,14 +150,26 @@ def compute_demands(M):
         # Calculate average group sizes
         avg_group_size = persona.get('avg_group_size', 2)
         
-        # Calculate raw monthly table needs for reservations without scaling factors
-        # We'll apply distribution and utilization factors after accumulating all demands
-        persona_4_full_raw = reserved_visits * (1 if avg_group_size > 2 else 0)
-        persona_2_split_raw = reserved_visits * (1 if avg_group_size <= 2 else 0)
+        # Calculate raw monthly table needs for reservations
+        # Distribute between 4-tops and 2-person based on group size
+        # For avg_group_size=4: 80% 4-tops, 20% 2-person
+        # For avg_group_size=3: 60% 4-tops, 40% 2-person
+        # For avg_group_size=2: 20% 4-tops, 80% 2-person
+        if avg_group_size == 4:
+            four_top_pct = 0.8
+        elif avg_group_size == 3:
+            four_top_pct = 0.6
+        else:  # avg_group_size == 2
+            four_top_pct = 0.2
+            
+        # Calculate raw monthly table needs with stricter capacity scaling
+        capacity_factor = 0.4  # Reduce raw demands to ensure we stay under physical limits
         
-        # For mixed seating, calculate raw monthly seat demand
-        # Move utilization factor application to after accumulation
-        mixed_seats_raw = int(mixed_visits * avg_group_size)  # raw monthly seats needed
+        # Calculate per-block demands with capacity factor only
+        # This ensures we don't exceed physical capacity even at peak times
+        persona_4_full_raw = (reserved_visits * four_top_pct * capacity_factor) / TIME_BLOCKS_PER_MONTH
+        persona_2_split_raw = (reserved_visits * (1 - four_top_pct) * capacity_factor) / TIME_BLOCKS_PER_MONTH
+        mixed_seats_raw = (mixed_visits * avg_group_size * capacity_factor) / TIME_BLOCKS_PER_MONTH
         
         # Store raw type-specific demands with just this persona's contribution
         demands['type_demands'][persona_type] = {
@@ -171,10 +183,6 @@ def compute_demands(M):
         demands['reserved_2_split'] += persona_2_split_raw
         demands['mixed_seats'] += mixed_seats_raw
     
-    # Apply scaling factors to final accumulated demands
-    utilization_factor = 0.8  # Concurrent usage efficiency
-    reservation_distribution_factor = 0.5  # Peak hours distribution factor
-    
     # Store raw demands for debugging
     raw_demands = {
         'reserved_4_full': demands['reserved_4_full'],
@@ -182,33 +190,41 @@ def compute_demands(M):
         'mixed_seats': demands['mixed_seats']
     }
     
-    # Scale the accumulated demands
-    demands['reserved_4_full'] = int(demands['reserved_4_full'] * reservation_distribution_factor)
-    demands['reserved_2_split'] = int(demands['reserved_2_split'] * reservation_distribution_factor)
+    # Apply utilization factor to all seating types
+    # This represents how efficiently we can fill tables on average due to:
+    # - Partial table fills (e.g. 3 people at a 4-top)
+    # - Time gaps between groups
+    # - Scheduling inefficiencies
+    utilization_factor = 0.8
+    
+    # Scale all demands by utilization factor
+    demands['reserved_4_full'] *= utilization_factor
+    demands['reserved_2_split'] *= utilization_factor
     demands['mixed_seats'] = int(demands['mixed_seats'] * utilization_factor)
     
-    # Debug output to verify scaling
+    # Debug output to verify calculations
     print(f"\nDemand Calculation Debug for {M} members:")
-    print(f"Raw demands before scaling:")
+    print(f"Raw demands (before utilization factor):")
     print(f"  Reserved 4-top (full): {raw_demands['reserved_4_full']}")
     print(f"  Reserved 2-person: {raw_demands['reserved_2_split']}")
     print(f"  Mixed seats: {raw_demands['mixed_seats']}")
-    print(f"\nScaled demands after applying factors:")
-    print(f"  Reserved 4-top (full): {demands['reserved_4_full']} (factor: {reservation_distribution_factor})")
-    print(f"  Reserved 2-person: {demands['reserved_2_split']} (factor: {reservation_distribution_factor})")
-    print(f"  Mixed seats: {demands['mixed_seats']} (factor: {utilization_factor})")
+    print(f"\nFinal demands:")
+    print(f"  Reserved 4-top (full): {demands['reserved_4_full']} (no scaling)")
+    print(f"  Reserved 2-person: {demands['reserved_2_split']} (no scaling)")
+    print(f"  Mixed seats: {demands['mixed_seats']} (utilization factor: {utilization_factor})")
     
     return demands
 
-def can_accommodate(M, peak_time_blocks=PEAK_TIME_BLOCKS, offpeak_time_blocks=OFFPEAK_TIME_BLOCKS):
+def can_accommodate(M, time_blocks=TIME_BLOCKS_PER_MONTH):
     """Check if we can accommodate M members with current capacity
     
     Args:
         M: Number of members to accommodate
-        peak_time_blocks: Number of 3-hour blocks during operating hours (5PM-11PM weekdays, 9AM-11PM weekends)
-        offpeak_time_blocks: Not used in new schedule (always 0)
+        time_blocks: Number of 3-hour blocks during operating hours
+                    Weekdays: 5PM-11PM (2 blocks/day * 5 days = 10 blocks/week)
+                    Weekends: 9AM-11PM (~4.67 blocks/day * 2 days = 9 blocks/week)
+                    Total: ~82 blocks/month
     """
-    time_blocks = peak_time_blocks + offpeak_time_blocks  # Total time blocks for backward compatibility
     demands = compute_demands(M)
     
     # Capacity constants
@@ -218,21 +234,13 @@ def can_accommodate(M, peak_time_blocks=PEAK_TIME_BLOCKS, offpeak_time_blocks=OF
     # Create optimization model
     model = pulp.LpProblem("Seating_Optimization", pulp.LpMinimize)
     
-    # Decision variables for table allocation during peak hours
-    peak_reserved_4_full = pulp.LpVariable("peak_reserved_4_full", 0, NUM_4_TOP)  # 4-top tables used fully
-    peak_reserved_4_split = pulp.LpVariable("peak_reserved_4_split", 0, NUM_4_TOP)  # 4-top tables split into 2-tops
-    peak_mixed_4_full = pulp.LpVariable("peak_mixed_4_full", 0, NUM_4_TOP)  # 4-top tables for mixed seating (full)
-    peak_mixed_4_split = pulp.LpVariable("peak_mixed_4_split", 0, NUM_4_TOP)  # 4-top tables for mixed seating (split)
-    peak_mixed_8 = pulp.LpVariable("peak_mixed_8", 0, NUM_8_TOP)  # 8-top tables for mixed seating
-
-    # Decision variables for table allocation during off-peak hours
-    offpeak_reserved_4_full = pulp.LpVariable("offpeak_reserved_4_full", 0, NUM_4_TOP)  # 4-top tables used fully
-    offpeak_reserved_4_split = pulp.LpVariable("offpeak_reserved_4_split", 0, NUM_4_TOP)  # 4-top tables split into 2-tops
-    offpeak_mixed_4_full = pulp.LpVariable("offpeak_mixed_4_full", 0, NUM_4_TOP)  # 4-top tables for mixed seating (full)
-    offpeak_mixed_4_split = pulp.LpVariable("offpeak_mixed_4_split", 0, NUM_4_TOP)  # 4-top tables for mixed seating (split)
-    offpeak_mixed_8 = pulp.LpVariable("offpeak_mixed_8", 0, NUM_8_TOP)  # 8-top tables for mixed seating
+    # Decision variables for table allocation
+    reserved_4_full = pulp.LpVariable("reserved_4_full", 0, NUM_4_TOP)  # 4-top tables used fully
+    reserved_4_split = pulp.LpVariable("reserved_4_split", 0, NUM_4_TOP)  # 4-top tables split into 2-tops
+    mixed_4_full = pulp.LpVariable("mixed_4_full", 0, NUM_4_TOP)  # 4-top tables for mixed seating (full)
+    mixed_4_split = pulp.LpVariable("mixed_4_split", 0, NUM_4_TOP)  # 4-top tables for mixed seating (split)
+    mixed_8 = pulp.LpVariable("mixed_8", 0, NUM_8_TOP)  # 8-top tables for mixed seating
     
-    # Objective: Maximize efficient table usage while prioritizing peak hours and reservations
     # Objective: Maximize efficient table usage while encouraging mixed seating
     # 1. Reserved seating (base weights)
     reserved_weight = 1.0
@@ -244,71 +252,56 @@ def can_accommodate(M, peak_time_blocks=PEAK_TIME_BLOCKS, offpeak_time_blocks=OF
     model += (
         # Reserved seating terms
         reserved_weight * (
-            peak_reserved_4_full +
-            (1 + split_penalty) * peak_reserved_4_split
+            reserved_4_full +
+            (1 + split_penalty) * reserved_4_split
         ) +
         # Mixed seating terms (lower weights to encourage usage)
         mixed_weight * (
-            peak_mixed_4_full +
-            (1 + split_penalty) * peak_mixed_4_split +
-            1.2 * peak_mixed_8  # Slightly higher weight for 8-tops
+            mixed_4_full +
+            (1 + split_penalty) * mixed_4_split +
+            1.2 * mixed_8  # Slightly higher weight for 8-tops
         )
     )
     
     # Constraints
     
-    # All demand is during peak hours in new schedule (5PM-11PM weekdays, 9AM-11PM weekends)
-    # No off-peak hours in new schedule
-    PEAK_DEMAND_RATIO = 1.0  # All demand during peak hours
-    OFFPEAK_DEMAND_RATIO = 0.0  # No off-peak hours
-
     # Scale monthly demands to per-block requirements
-    turnover_factor = 2  # Each table can serve 2 groups per 3-hour block
+    # Note: With 3-hour blocks, most groups will use the full block
+    # Turnover within a block is rare since:
+    # 1. Setup/cleanup time between groups
+    # 2. Most games take 1-3 hours
+    # 3. Reservations are for the full block
+    turnover_factor = 1  # Each table typically serves 1 group per 3-hour block
     
-    # Convert monthly reservation demands to per-block requirements
-    reserved_4_per_block = demands['reserved_4_full'] / (peak_time_blocks * turnover_factor)
-    reserved_2_per_block = demands['reserved_2_split'] / (peak_time_blocks * turnover_factor)
+    # Convert monthly demands to per-block requirements
+    reserved_4_per_block = demands['reserved_4_full'] / time_blocks  # No turnover for reservations
+    reserved_2_per_block = demands['reserved_2_split'] / time_blocks  # No turnover for reservations
     
-    # Convert monthly mixed seating demands to per-block requirements
-    mixed_demand_per_block = demands['mixed_seats'] / (peak_time_blocks * turnover_factor)
+    # For mixed seating, allow some flexibility but still mostly 1 group per block
+    mixed_demand_per_block = demands['mixed_seats'] / (time_blocks * turnover_factor)
     
-    # Meet reservation demands during peak hours
-    model += peak_reserved_4_full >= reserved_4_per_block
-    model += peak_reserved_4_split * 2 >= reserved_2_per_block  # Each split table serves 2 groups
+    # Meet reservation demands
+    model += reserved_4_full >= reserved_4_per_block
+    model += reserved_4_split * 2 >= reserved_2_per_block  # Each split table serves 2 groups
     
     # Meet mixed seating demand with more flexible constraints
     model += (
-        peak_mixed_4_full * 4 +  # Each full 4-top serves 4 people
-        peak_mixed_4_split * 2 +  # Each split 4-top serves 2 people
-        peak_mixed_8 * 8  # Each 8-top serves 8 people
+        mixed_4_full * 4 +  # Each full 4-top serves 4 people
+        mixed_4_split * 2 +  # Each split 4-top serves 2 people
+        mixed_8 * 8  # Each 8-top serves 8 people
     ) >= mixed_demand_per_block
 
     # Soft targets for distribution (using <= instead of == to allow flexibility)
-    # Scale targets by peak_time_blocks since we're now working with per-block demands
-    model += peak_mixed_4_full * 4 <= 0.5 * mixed_demand_per_block  # Target ~40-50% on full 4-tops
-    model += peak_mixed_4_split * 2 <= 0.4 * mixed_demand_per_block  # Target ~30-40% on split 4-tops
-    model += peak_mixed_8 * 8 <= 0.3 * mixed_demand_per_block  # Target ~20-30% on 8-tops
-
-    # No off-peak constraints needed since there are no off-peak hours
-    # Setting off-peak variables to 0 since they won't be used
-    model += offpeak_reserved_4_full == 0
-    model += offpeak_reserved_4_split == 0
-    model += offpeak_mixed_4_full == 0
-    model += offpeak_mixed_4_split == 0
-    model += offpeak_mixed_8 == 0
+    model += mixed_4_full * 4 <= 0.5 * mixed_demand_per_block  # Target ~40-50% on full 4-tops
+    model += mixed_4_split * 2 <= 0.4 * mixed_demand_per_block  # Target ~30-40% on split 4-tops
+    model += mixed_8 * 8 <= 0.3 * mixed_demand_per_block  # Target ~20-30% on 8-tops
     
     # Table capacity constraints - ensure total tables used doesn't exceed capacity
-    # For 4-top tables during peak hours
-    model += (peak_reserved_4_full + peak_reserved_4_split + 
-             peak_mixed_4_full + peak_mixed_4_split) <= NUM_4_TOP
-    # For 8-top tables during peak hours
-    model += peak_mixed_8 <= NUM_8_TOP
-    
-    # For 4-top tables during off-peak hours
-    model += (offpeak_reserved_4_full + offpeak_reserved_4_split + 
-             offpeak_mixed_4_full + offpeak_mixed_4_split) <= NUM_4_TOP
-    # For 8-top tables during off-peak hours
-    model += offpeak_mixed_8 <= NUM_8_TOP
+    # For 4-top tables
+    model += (reserved_4_full + reserved_4_split + 
+             mixed_4_full + mixed_4_split) <= NUM_4_TOP
+    # For 8-top tables
+    model += mixed_8 <= NUM_8_TOP
 
     # Solve the model
     model.solve()
@@ -316,44 +309,26 @@ def can_accommodate(M, peak_time_blocks=PEAK_TIME_BLOCKS, offpeak_time_blocks=OF
     # Check if solution exists and is optimal
     if pulp.LpStatus[model.status] == 'Optimal':
         results = {
-            'peak': {
-                'reserved_4_full': peak_reserved_4_full.value(),
-                'reserved_4_split': peak_reserved_4_split.value(),
-                'mixed_4_full': peak_mixed_4_full.value(),
-                'mixed_4_split': peak_mixed_4_split.value(),
-                'mixed_8': peak_mixed_8.value()
-            },
-            'offpeak': {
-                'reserved_4_full': offpeak_reserved_4_full.value(),
-                'reserved_4_split': offpeak_reserved_4_split.value(),
-                'mixed_4_full': offpeak_mixed_4_full.value(),
-                'mixed_4_split': offpeak_mixed_4_split.value(),
-                'mixed_8': offpeak_mixed_8.value()
+            'tables': {
+                'reserved_4_full': reserved_4_full.value(),
+                'reserved_4_split': reserved_4_split.value(),
+                'mixed_4_full': mixed_4_full.value(),
+                'mixed_4_split': mixed_4_split.value(),
+                'mixed_8': mixed_8.value()
             },
             'demands': demands,
-            'time_blocks': {
-                'peak': peak_time_blocks,
-                'offpeak': offpeak_time_blocks,
-                'total': peak_time_blocks + offpeak_time_blocks
-            }
+            'time_blocks': time_blocks
         }
         
-        # Calculate utilization rates for both time periods
-        peak_four_top_util = (results['peak']['reserved_4_full'] + 
-                            results['peak']['reserved_4_split'] + 
-                            results['peak']['mixed_4_full'] + 
-                            results['peak']['mixed_4_split'])/NUM_4_TOP * 100
-        peak_eight_top_util = results['peak']['mixed_8']/NUM_8_TOP * 100
+        # Calculate utilization rates
+        four_top_util = (results['tables']['reserved_4_full'] + 
+                       results['tables']['reserved_4_split'] + 
+                       results['tables']['mixed_4_full'] + 
+                       results['tables']['mixed_4_split'])/NUM_4_TOP * 100
+        eight_top_util = results['tables']['mixed_8']/NUM_8_TOP * 100
         
-        offpeak_four_top_util = (results['offpeak']['reserved_4_full'] + 
-                               results['offpeak']['reserved_4_split'] + 
-                               results['offpeak']['mixed_4_full'] + 
-                               results['offpeak']['mixed_4_split'])/NUM_4_TOP * 100
-        offpeak_eight_top_util = results['offpeak']['mixed_8']/NUM_8_TOP * 100
-        
-        # Return True if neither period exceeds capacity
-        if (peak_four_top_util <= 100 and peak_eight_top_util <= 100 and
-            offpeak_four_top_util <= 100 and offpeak_eight_top_util <= 100):
+        # Return True if neither table type exceeds capacity
+        if four_top_util <= 100 and eight_top_util <= 100:
             return True, results
     
     return False, None
@@ -368,19 +343,19 @@ def analyze_capacity(test_members=[200, 250, 300, 350, 400]):
         demands = compute_demands(M)
         total_tables = 6 + 3
         
-        # Calculate tables needed with turnover factor (multiple groups per block)
-        turnover_factor = 2  # Each table can serve 2 groups per 3-hour block
-        
-        # First convert monthly totals to per-block needs by dividing by TIME_BLOCKS_PER_MONTH
-        # Then apply turnover factor to account for multiple groups per block
+        # Calculate tables needed per block
+        # Note: With 3-hour blocks, most groups use the full block duration
+        # - Setup/cleanup time between groups
+        # - Most games take 1-3 hours
+        # - Reservations are for the full block
         
         # For 4-tops: count full tables and half for split tables
+        # No turnover factor since each reservation takes the full block
         four_top_tables = (demands['reserved_4_full'] + demands['reserved_2_split']/2) / TIME_BLOCKS_PER_MONTH
-        four_top_tables = four_top_tables / turnover_factor
         
-        # For mixed: assume average 4 seats per table (more realistic than optimal 8)
-        mixed_tables_needed = demands['mixed_seats'] / (4 * TIME_BLOCKS_PER_MONTH)  # First get seats per block
-        mixed_tables_needed = mixed_tables_needed / turnover_factor  # Then apply turnover
+        # For mixed seating: assume average 4 seats per table
+        # Allow some flexibility in mixed seating but still mostly 1 group per block
+        mixed_tables_needed = demands['mixed_seats'] / (4 * TIME_BLOCKS_PER_MONTH)  # Convert to tables per block
         
         total_tables_needed = four_top_tables + mixed_tables_needed
         capacity_used = (total_tables_needed / total_tables) * 100  # Will be ~2x higher due to turnover_factor
@@ -409,34 +384,22 @@ def analyze_capacity(test_members=[200, 250, 300, 350, 400]):
             if 'demands' in results:
                 demands = results['demands']
             
-                print("\nPeak Hours Table Usage (evenings/weekends):")
+                print("\nTable Usage (per 3-hour block):")
                 print("-" * 40)
                 print("4-top tables:")
-                if 'peak' in results:
-                    print(f"Full reservations: {results['peak']['reserved_4_full']:.1f} tables")
-                    print(f"Split reservations: {results['peak']['reserved_4_split']:.1f} tables ({results['peak']['reserved_4_split']*2:.1f} 2-person slots)")
-                    print(f"Mixed seating (full): {results['peak']['mixed_4_full']:.1f} tables ({results['peak']['mixed_4_full']*4:.1f} seats)")
-                    print(f"Mixed seating (split): {results['peak']['mixed_4_split']:.1f} tables ({results['peak']['mixed_4_split']*2:.1f} seats)")
+                if 'tables' in results:
+                    print(f"Full reservations: {results['tables']['reserved_4_full']:.1f} tables")
+                    print(f"Split reservations: {results['tables']['reserved_4_split']:.1f} tables ({results['tables']['reserved_4_split']*2:.1f} 2-person slots)")
+                    print(f"Mixed seating (full): {results['tables']['mixed_4_full']:.1f} tables ({results['tables']['mixed_4_full']*4:.1f} seats)")
+                    print(f"Mixed seating (split): {results['tables']['mixed_4_split']:.1f} tables ({results['tables']['mixed_4_split']*2:.1f} seats)")
                     print("\n8-top tables:")
-                    print(f"Mixed seating: {results['peak']['mixed_8']:.1f} tables ({results['peak']['mixed_8']*8:.1f} seats)")
+                    print(f"Mixed seating: {results['tables']['mixed_8']:.1f} tables ({results['tables']['mixed_8']*8:.1f} seats)")
                 
-                print("\nOff-Peak Hours Table Usage (weekday daytime):")
-                print("-" * 40)
-                print("4-top tables:")
-                if 'offpeak' in results:
-                    print(f"Full reservations: {results['offpeak']['reserved_4_full']:.1f} tables")
-                    print(f"Split reservations: {results['offpeak']['reserved_4_split']:.1f} tables ({results['offpeak']['reserved_4_split']*2:.1f} 2-person slots)")
-                    print(f"Mixed seating (full): {results['offpeak']['mixed_4_full']:.1f} tables ({results['offpeak']['mixed_4_full']*4:.1f} seats)")
-                    print(f"Mixed seating (split): {results['offpeak']['mixed_4_split']:.1f} tables ({results['offpeak']['mixed_4_split']*2:.1f} seats)")
-                    print("\n8-top tables:")
-                    print(f"Mixed seating: {results['offpeak']['mixed_8']:.1f} tables ({results['offpeak']['mixed_8']*8:.1f} seats)")
-                
-                print("\nTime Block Distribution:")
+                print("\nOperating Hours:")
                 print("-" * 20)
-                if 'time_blocks' in results:
-                    print(f"Peak blocks: {results['time_blocks']['peak']} ({results['time_blocks']['peak']/results['time_blocks']['total']*100:.1f}%)")
-                    print(f"Off-peak blocks: {results['time_blocks']['offpeak']} ({results['time_blocks']['offpeak']/results['time_blocks']['total']*100:.1f}%)")
-                    print(f"Total blocks: {results['time_blocks']['total']}")
+                print("Weekdays: 5PM-11PM (2 blocks/day * 5 days = 10 blocks/week)")
+                print("Weekends: 9AM-11PM (~4.67 blocks/day * 2 days = 9 blocks/week)")
+                print(f"Total blocks per month: {TIME_BLOCKS_PER_MONTH}")
             
             print("\nBy Persona Type:")
             print("-" * 20)
@@ -448,12 +411,10 @@ def analyze_capacity(test_members=[200, 250, 300, 350, 400]):
             
             print("\nUtilization Rates:")
             print("-" * 20)
-            # Calculate combined utilization from peak and off-peak
-            four_top_util = ((results['peak']['reserved_4_full'] + results['peak']['reserved_4_split'] + 
-                            results['peak']['mixed_4_full'] + results['peak']['mixed_4_split'] +
-                            results['offpeak']['reserved_4_full'] + results['offpeak']['reserved_4_split'] + 
-                            results['offpeak']['mixed_4_full'] + results['offpeak']['mixed_4_split'])/6) * 100
-            eight_top_util = ((results['peak']['mixed_8'] + results['offpeak']['mixed_8'])/3) * 100
+            # Calculate utilization rates
+            four_top_util = ((results['tables']['reserved_4_full'] + results['tables']['reserved_4_split'] + 
+                           results['tables']['mixed_4_full'] + results['tables']['mixed_4_split'])/6) * 100
+            eight_top_util = (results['tables']['mixed_8']/3) * 100
             print(f"4-top tables: {four_top_util:.1f}%")
             print(f"8-top tables: {eight_top_util:.1f}%")
             print(f"Overall: {(four_top_util * 6 + eight_top_util * 3)/(6 + 3):.1f}%")
