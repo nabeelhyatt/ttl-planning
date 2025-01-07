@@ -150,30 +150,53 @@ def compute_demands(M):
         # Calculate average group sizes
         avg_group_size = persona.get('avg_group_size', 2)
         
-        # Calculate total monthly table needs for reservations
-        # For reservations, we need enough tables to handle the monthly volume spread across blocks
-        reservation_distribution_factor = 0.3  # Assume 30% of blocks will have reservations
-        available_blocks = TIME_BLOCKS_PER_MONTH * reservation_distribution_factor
+        # Calculate raw monthly table needs for reservations without scaling factors
+        # We'll apply distribution and utilization factors after accumulating all demands
+        persona_4_full_raw = reserved_visits * (1 if avg_group_size > 2 else 0)
+        persona_2_split_raw = reserved_visits * (1 if avg_group_size <= 2 else 0)
         
-        persona_4_full = (reserved_visits * (1 if avg_group_size > 2 else 0)) / available_blocks
-        persona_2_split = (reserved_visits * (1 if avg_group_size <= 2 else 0)) / available_blocks
+        # For mixed seating, calculate raw monthly seat demand
+        # Move utilization factor application to after accumulation
+        mixed_seats_raw = int(mixed_visits * avg_group_size)  # raw monthly seats needed
         
-        # For mixed seating, we need concurrent capacity in each block
-        # Using 0.7 factor to account for better table turnover with 3-hour blocks
-        utilization_factor = 0.7  # Reduced from 0.9 to be more conservative
-        mixed_seats = int((mixed_visits * avg_group_size * utilization_factor) / TIME_BLOCKS_PER_MONTH)  # seats needed per block
-        
-        # Store type-specific demands with just this persona's contribution
+        # Store raw type-specific demands with just this persona's contribution
         demands['type_demands'][persona_type] = {
-            'reserved_4_full': persona_4_full,
-            'reserved_2_split': persona_2_split,
-            'mixed_seats': mixed_seats
+            'reserved_4_full': persona_4_full_raw,
+            'reserved_2_split': persona_2_split_raw,
+            'mixed_seats': mixed_seats_raw
         }
         
-        # Update total demands
-        demands['reserved_4_full'] += persona_4_full
-        demands['reserved_2_split'] += persona_2_split
-        demands['mixed_seats'] += mixed_seats
+        # Update total raw demands
+        demands['reserved_4_full'] += persona_4_full_raw
+        demands['reserved_2_split'] += persona_2_split_raw
+        demands['mixed_seats'] += mixed_seats_raw
+    
+    # Apply scaling factors to final accumulated demands
+    utilization_factor = 0.8  # Concurrent usage efficiency
+    reservation_distribution_factor = 0.5  # Peak hours distribution factor
+    
+    # Store raw demands for debugging
+    raw_demands = {
+        'reserved_4_full': demands['reserved_4_full'],
+        'reserved_2_split': demands['reserved_2_split'],
+        'mixed_seats': demands['mixed_seats']
+    }
+    
+    # Scale the accumulated demands
+    demands['reserved_4_full'] = int(demands['reserved_4_full'] * reservation_distribution_factor)
+    demands['reserved_2_split'] = int(demands['reserved_2_split'] * reservation_distribution_factor)
+    demands['mixed_seats'] = int(demands['mixed_seats'] * utilization_factor)
+    
+    # Debug output to verify scaling
+    print(f"\nDemand Calculation Debug for {M} members:")
+    print(f"Raw demands before scaling:")
+    print(f"  Reserved 4-top (full): {raw_demands['reserved_4_full']}")
+    print(f"  Reserved 2-person: {raw_demands['reserved_2_split']}")
+    print(f"  Mixed seats: {raw_demands['mixed_seats']}")
+    print(f"\nScaled demands after applying factors:")
+    print(f"  Reserved 4-top (full): {demands['reserved_4_full']} (factor: {reservation_distribution_factor})")
+    print(f"  Reserved 2-person: {demands['reserved_2_split']} (factor: {reservation_distribution_factor})")
+    print(f"  Mixed seats: {demands['mixed_seats']} (factor: {utilization_factor})")
     
     return demands
 
@@ -239,24 +262,32 @@ def can_accommodate(M, peak_time_blocks=PEAK_TIME_BLOCKS, offpeak_time_blocks=OF
     PEAK_DEMAND_RATIO = 1.0  # All demand during peak hours
     OFFPEAK_DEMAND_RATIO = 0.0  # No off-peak hours
 
-    # Meet all demand during peak hours (no off-peak in new schedule)
-    model += peak_reserved_4_full * peak_time_blocks >= demands['reserved_4_full']
-    model += peak_reserved_4_split * peak_time_blocks * 2 >= demands['reserved_2_split']
-
-    # Meet all mixed seating demand during peak hours with more flexible constraints
-    mixed_demand = demands['mixed_seats']
+    # Scale monthly demands to per-block requirements
+    turnover_factor = 2  # Each table can serve 2 groups per 3-hour block
     
-    # Total mixed seating capacity must meet demand
+    # Convert monthly reservation demands to per-block requirements
+    reserved_4_per_block = demands['reserved_4_full'] / (peak_time_blocks * turnover_factor)
+    reserved_2_per_block = demands['reserved_2_split'] / (peak_time_blocks * turnover_factor)
+    
+    # Convert monthly mixed seating demands to per-block requirements
+    mixed_demand_per_block = demands['mixed_seats'] / (peak_time_blocks * turnover_factor)
+    
+    # Meet reservation demands during peak hours
+    model += peak_reserved_4_full >= reserved_4_per_block
+    model += peak_reserved_4_split * 2 >= reserved_2_per_block  # Each split table serves 2 groups
+    
+    # Meet mixed seating demand with more flexible constraints
     model += (
-        peak_mixed_4_full * peak_time_blocks * 4 +
-        peak_mixed_4_split * peak_time_blocks * 2 +
-        peak_mixed_8 * peak_time_blocks * 8
-    ) >= mixed_demand
+        peak_mixed_4_full * 4 +  # Each full 4-top serves 4 people
+        peak_mixed_4_split * 2 +  # Each split 4-top serves 2 people
+        peak_mixed_8 * 8  # Each 8-top serves 8 people
+    ) >= mixed_demand_per_block
 
     # Soft targets for distribution (using <= instead of == to allow flexibility)
-    model += peak_mixed_4_full * peak_time_blocks * 4 <= 0.5 * mixed_demand  # Target ~40-50% on full 4-tops
-    model += peak_mixed_4_split * peak_time_blocks * 2 <= 0.4 * mixed_demand  # Target ~30-40% on split 4-tops
-    model += peak_mixed_8 * peak_time_blocks * 8 <= 0.3 * mixed_demand  # Target ~20-30% on 8-tops
+    # Scale targets by peak_time_blocks since we're now working with per-block demands
+    model += peak_mixed_4_full * 4 <= 0.5 * mixed_demand_per_block  # Target ~40-50% on full 4-tops
+    model += peak_mixed_4_split * 2 <= 0.4 * mixed_demand_per_block  # Target ~30-40% on split 4-tops
+    model += peak_mixed_8 * 8 <= 0.3 * mixed_demand_per_block  # Target ~20-30% on 8-tops
 
     # No off-peak constraints needed since there are no off-peak hours
     # Setting off-peak variables to 0 since they won't be used
@@ -337,14 +368,22 @@ def analyze_capacity(test_members=[200, 250, 300, 350, 400]):
         demands = compute_demands(M)
         total_tables = 6 + 3
         
-        # Calculate tables needed
+        # Calculate tables needed with turnover factor (multiple groups per block)
+        turnover_factor = 2  # Each table can serve 2 groups per 3-hour block
+        
+        # First convert monthly totals to per-block needs by dividing by TIME_BLOCKS_PER_MONTH
+        # Then apply turnover factor to account for multiple groups per block
+        
         # For 4-tops: count full tables and half for split tables
-        four_top_tables = (demands['reserved_4_full'] + demands['reserved_2_split']/2)/TIME_BLOCKS_PER_MONTH
+        four_top_tables = (demands['reserved_4_full'] + demands['reserved_2_split']/2) / TIME_BLOCKS_PER_MONTH
+        four_top_tables = four_top_tables / turnover_factor
+        
         # For mixed: assume average 4 seats per table (more realistic than optimal 8)
-        mixed_tables_needed = demands['mixed_seats']/(4 * TIME_BLOCKS_PER_MONTH)  # Using 4 seats/table average
+        mixed_tables_needed = demands['mixed_seats'] / (4 * TIME_BLOCKS_PER_MONTH)  # First get seats per block
+        mixed_tables_needed = mixed_tables_needed / turnover_factor  # Then apply turnover
         
         total_tables_needed = four_top_tables + mixed_tables_needed
-        capacity_used = (total_tables_needed / total_tables) * 100
+        capacity_used = (total_tables_needed / total_tables) * 100  # Will be ~2x higher due to turnover_factor
         
         if can_accommodate(M)[0]:
             results.append(f"{M} members: {capacity_used:.0f}% capacity")
