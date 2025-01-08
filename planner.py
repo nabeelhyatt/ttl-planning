@@ -49,54 +49,87 @@ GUEST_SPENDING_MULTIPLIER = 1  # Guests tend to spend a bit more
 
 # Distribution percentages
 PERSONA_DISTRIBUTION = {
-    'casual': 0.25,    # 45% casual gamers
-    'students': 0.25,  # 15% students
-    'families': 0.25,  # 15% families
-    'hobbyists': 0.15, # 15% hobbyists
-    'everyday': 0.10   # 10% everyday players
+    'casual': 0.253,
+    'everyday': 0.106,
+    'families': 0.266,
+    'hobbyists': 0.16,
+    'students': 0.214,
 }
 
 # Persona prices, guests, and visit mixes
 PERSONAS = {
     'casual': {
-        'price': 8,   # price willing to pay per visit
-        'guests_per_month': 3,   # Assumes 2 guests on average for a 4-top
-        'reserved_visits': 1,       # visits/month
-        'mixed_visits': .5,        # mixed visits/month
-        'game_checkouts': 0,          # 1 game checkout per month
-        'avg_group_size': 4
+        'price': 5,
+        'guests_per_reserved': 0,
+        'reserved_visits': 1,
+        'mixed_visits': 1,
+        'guest_passes': 0,
+        'guest_discount': 0,
+    },
+    'everyday': {
+        'price': 5,
+        'guests_per_reserved': 0,
+        'reserved_visits': 8,
+        'mixed_visits': 4,
+        'guest_passes': 0,
+        'guest_discount': 0,
+    },
+    'families': {
+        'price': 15,
+        'guests_per_reserved': 0,
+        'reserved_visits': 3,
+        'mixed_visits': 2,
+        'guest_passes': 0,
+        'guest_discount': 0,
+    },
+    'hobbyists': {
+        'price': 10,
+        'guests_per_reserved': 0,
+        'reserved_visits': 4,
+        'mixed_visits': 2,
+        'guest_passes': 0,
+        'guest_discount': 0,
     },
     'students': {
+        'price': 5,
+        'guests_per_reserved': 0,
+        'reserved_visits': 8,
+        'mixed_visits': 1,
+        'guest_passes': 0,
+        'guest_discount': 0,
+    },
+}
+    'everyday': {
         'price': 5,   # price willing to pay per visit
         'guests_per_month': 3,   # Assumes 3 guests for a 4-top
-        'reserved_visits': 8,       # visits/month
-        'mixed_visits': 1,          # mixed visits/month
-        'game_checkouts': 1,          # 1 game checkout per month
-        'avg_group_size': 3
+        'reserved_visits': 8,    # visits/month
+        'mixed_visits': 4,       # mixed event visits/month
+        'game_checkouts': 2,     # game checkouts per month
+        'avg_group_size': 4      # member + average guests
     },
     'families': {
         'price': 15,   # price willing to pay per visit
         'guests_per_month': 2.5, # Average between solo parent (2 kids) and family visit (3 family)
-        'reserved_visits': 3,       # visits/month
-        'mixed_visits': 2,          # mixed visits/month
-        'game_checkouts': 1,          # 1 game checkout per month
-        'avg_group_size': 4
+        'reserved_visits': 3,    # visits/month
+        'mixed_visits': 2,       # mixed visits/month
+        'game_checkouts': 1,     # game checkouts per month
+        'avg_group_size': 4      # member + average guests
     },
     'hobbyists': {
         'price': 10,   # price willing to pay per visit
         'guests_per_month': 3,   # Assumes 3 guests for a 4-top
-        'reserved_visits': 4,       # visits/month
-        'mixed_visits': 2,          # mixed visits/month
-        'game_checkouts': 2,          # 2 game checkouts per month
-        'avg_group_size': 4
+        'reserved_visits': 4,    # visits/month
+        'mixed_visits': 2,       # mixed visits/month
+        'game_checkouts': 2,     # game checkouts per month
+        'avg_group_size': 4      # member + average guests
     },
-    'everyday': {
+    'students': {
         'price': 5,   # price willing to pay per visit
         'guests_per_month': 3,   # Assumes 3 guests for a 4-top
-        'reserved_visits': 8,       # visits/month
-        'mixed_visits': 4,          # mixed event visits/month
-        'game_checkouts': 2,          # 10 game checkouts per month
-        'avg_group_size': 4
+        'reserved_visits': 8,    # visits/month
+        'mixed_visits': 1,       # mixed visits/month
+        'game_checkouts': 1,     # game checkouts per month
+        'avg_group_size': 3      # member + average guests
     }
 }
 

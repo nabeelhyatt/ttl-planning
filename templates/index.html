@@ -282,6 +282,74 @@
     </div>
 
     <script>
+        // Define input mappings globally
+        const personaInputs = {
+            'casual': '5',
+            'everyday': '6',
+            'families': '7',
+            'hobbyists': '8',
+            'students': '9'
+        };
+
+        const personaDetailInputs = {
+            'casual': {
+                price: '10',
+                guests: '11',
+                reserved: '12',
+                mixed: '13',
+                passes: '14',
+                discount: '15',
+                retail: '40',
+                snacks: '41'
+            },
+            'everyday': {
+                price: '16',
+                guests: '17',
+                reserved: '18',
+                mixed: '19',
+                passes: '20',
+                discount: '21',
+                retail: '42',
+                snacks: '43'
+            },
+            'families': {
+                price: '22',
+                guests: '23',
+                reserved: '24',
+                mixed: '25',
+                passes: '26',
+                discount: '27',
+                retail: '44',
+                snacks: '45'
+            },
+            'hobbyists': {
+                price: '28',
+                guests: '29',
+                reserved: '30',
+                mixed: '31',
+                passes: '32',
+                discount: '33',
+                retail: '46',
+                snacks: '47'
+            },
+            'students': {
+                price: '34',
+                guests: '35',
+                reserved: '36',
+                mixed: '37',
+                passes: '38',
+                discount: '39',
+                retail: '48',
+                snacks: '49'
+            }
+        };
+
+        const planPriceInputs = {
+            'basic': '50',
+            'standard': '52',
+            'family': '51'
+        };
+
         function switchTab(tabName) {
             // Hide all content sections
             document.querySelectorAll('.content').forEach(section => {
@@ -436,7 +504,7 @@
                         distDiv.innerHTML += `
                             <div class="config-item">
                                 <label>${displayName} (%)</label>
-                                <input type="number" id="dist_${persona}" value="${(percentage * 100).toFixed(1)}" 
+                                <input type="number" devinid="${personaInputs[persona]}" value="${(percentage * 100).toFixed(1)}" 
                                        step="0.1" min="0" max="100">
                             </div>`;
                     }
@@ -450,17 +518,17 @@
                             <div class="config-item">
                                 <h4>${displayName}</h4>
                                 <label>Price ($)</label>
-                                <input type="number" id="price_${persona}" value="${details.price}" step="1">
+                                <input type="number" devinid="${personaDetailInputs[persona].price}" value="${details.price}" step="1">
                                 <label>Guests per Reserved Visit</label>
-                                <input type="number" id="guests_${persona}" value="${details.guests_per_reserved}" step="0.5">
+                                <input type="number" devinid="${personaDetailInputs[persona].guests}" value="${details.guests_per_reserved}" step="0.5">
                                 <label>Reserved Visits</label>
-                                <input type="number" id="reserved_${persona}" value="${details.reserved_visits}" step="1">
+                                <input type="number" devinid="${personaDetailInputs[persona].reserved}" value="${details.reserved_visits}" step="1">
                                 <label>Mixed Visits</label>
-                                <input type="number" id="mixed_${persona}" value="${details.mixed_visits}" step="0.5">
+                                <input type="number" devinid="${personaDetailInputs[persona].mixed}" value="${details.mixed_visits}" step="0.5">
                                 <label>Guest Passes</label>
-                                <input type="number" id="passes_${persona}" value="${details.guest_passes}" step="1">
+                                <input type="number" devinid="${personaDetailInputs[persona].passes}" value="${details.guest_passes}" step="1">
                                 <label>Guest Discount (%)</label>
-                                <input type="number" id="discount_${persona}" value="${details.guest_discount * 100}" step="5">
+                                <input type="number" devinid="${personaDetailInputs[persona].discount}" value="${details.guest_discount * 100}" step="5">
                             </div>`;
                     }
 
@@ -474,9 +542,9 @@
                             <div class="config-item">
                                 <h4>${displayName}</h4>
                                 <label>Monthly Retail ($)</label>
-                                <input type="number" id="retail_${persona}" value="${retail}" step="0.01">
+                                <input type="number" devinid="${personaDetailInputs[persona].retail}" value="${retail}" step="0.01">
                                 <label>Snacks per Visit ($)</label>
-                                <input type="number" id="snacks_${persona}" value="${snacks}" step="0.01">
+                                <input type="number" devinid="${personaDetailInputs[persona].snacks}" value="${snacks}" step="0.01">
                             </div>`;
                     }
 
@@ -492,7 +560,7 @@
                             <div class="plan-card">
                                 <h4>${displayName} Plan</h4>
                                 <label>Price ($)</label>
-                                <input type="number" id="${plan}" value="${price}" step="1">
+                                <input type="number" devinid="${planPriceInputs[plan.replace('_plan_price', '')]}" value="${price}" step="1">
                                 <div class="plan-features">
                                     <h5>Features:</h5>
                                     <ul>
@@ -518,59 +586,102 @@
                 plan_prices: {}
             };
 
-            // Collect persona distribution
-            document.querySelectorAll('[id^="dist_"]').forEach(input => {
-                const persona = input.id.replace('dist_', '');
-                config.distribution[persona] = parseFloat(input.value) / 100;
+            // Initialize config.distribution
+            config.distribution = {};
+            
+            console.log('Starting saveConfig...');
+            
+            // Collect persona distribution with validation
+            Object.entries(personaInputs).forEach(([persona, devinid]) => {
+                const input = document.querySelector(`input[type="number"][devinid="${devinid}"]`);
+                if (input && !isNaN(input.value) && input.value !== '') {
+                    const percentValue = parseFloat(input.value);
+                    const decimalValue = percentValue / 100;
+                    config.distribution[persona] = decimalValue;
+                    console.log(`Distribution for ${persona}: ${percentValue}% (${decimalValue} decimal)`);
+                } else {
+                    console.warn(`Missing or invalid value for persona: ${persona}`);
+                }
             });
 
-            // Collect persona details
-            document.querySelectorAll('.config-item h4').forEach(header => {
-                const persona = header.textContent.toLowerCase();
-                const div = header.parentElement;
+            // Use the globally defined personaDetailInputs
+
+            // Collect persona details using devinids
+            Object.entries(personaDetailInputs).forEach(([persona, ids]) => {
+                const priceInput = document.querySelector(`input[devinid="${ids.price}"]`);
+                const guestsInput = document.querySelector(`input[devinid="${ids.guests}"]`);
+                const reservedInput = document.querySelector(`input[devinid="${ids.reserved}"]`);
+                const mixedInput = document.querySelector(`input[devinid="${ids.mixed}"]`);
+                const passesInput = document.querySelector(`input[devinid="${ids.passes}"]`);
+                const discountInput = document.querySelector(`input[devinid="${ids.discount}"]`);
+                
+                // Ensure all numeric fields have default values of 0
+                const price = priceInput && !isNaN(priceInput.value) && priceInput.value !== '' ? parseFloat(priceInput.value) : 0;
+                const guests = guestsInput && !isNaN(guestsInput.value) && guestsInput.value !== '' ? parseFloat(guestsInput.value) : 0;
+                const reserved = reservedInput && !isNaN(reservedInput.value) && reservedInput.value !== '' ? parseInt(reservedInput.value) : 0;
+                const mixed = mixedInput && !isNaN(mixedInput.value) && mixedInput.value !== '' ? parseFloat(mixedInput.value) : 0;
+                const passes = passesInput && !isNaN(passesInput.value) && passesInput.value !== '' ? parseInt(passesInput.value) : 0;
+                const discount = discountInput && !isNaN(discountInput.value) && discountInput.value !== '' ? parseFloat(discountInput.value) / 100 : 0;
+                
                 config.personas[persona] = {
-                    price: parseFloat(div.querySelector(`#price_${persona}`).value),
-                    guests_per_reserved: parseFloat(div.querySelector(`#guests_${persona}`).value),
-                    reserved_visits: parseInt(div.querySelector(`#reserved_${persona}`).value),
-                    mixed_visits: parseFloat(div.querySelector(`#mixed_${persona}`).value),
-                    guest_passes: parseInt(div.querySelector(`#passes_${persona}`).value),
-                    guest_discount: parseFloat(div.querySelector(`#discount_${persona}`).value) / 100
+                    price: price,
+                    guests_per_reserved: guests,
+                    reserved_visits: reserved,
+                    mixed_visits: mixed,
+                    guest_passes: passes,
+                    guest_discount: discount
                 };
 
                 // Collect spending assumptions
-                config.spending_assumptions.retail_monthly[persona] = parseFloat(document.querySelector(`#retail_${persona}`).value);
-                config.spending_assumptions.snacks[persona] = parseFloat(document.querySelector(`#snacks_${persona}`).value);
+                const retailInput = document.querySelector(`input[devinid="${ids.retail}"]`);
+                const snacksInput = document.querySelector(`input[devinid="${ids.snacks}"]`);
+                config.spending_assumptions.retail_monthly[persona] = retailInput && !isNaN(retailInput.value) ? parseFloat(retailInput.value) : 0;
+                config.spending_assumptions.snacks[persona] = snacksInput && !isNaN(snacksInput.value) ? parseFloat(snacksInput.value) : 0;
             });
 
-            // Collect plan prices
+            // Collect plan prices using devinids
+            const planPriceInputs = {
+                basic_plan_price: document.querySelector('input[devinid="50"]'),
+                standard_plan_price: document.querySelector('input[devinid="52"]'),
+                family_plan_price: document.querySelector('input[devinid="51"]')
+            };
+            
             config.plan_prices = {
-                basic_plan_price: parseFloat(document.querySelector('#basic_plan_price').value),
-                standard_plan_price: parseFloat(document.querySelector('#standard_plan_price').value),
-                family_plan_price: parseFloat(document.querySelector('#family_plan_price').value)
+                basic_plan_price: planPriceInputs.basic_plan_price && !isNaN(planPriceInputs.basic_plan_price.value) ? parseFloat(planPriceInputs.basic_plan_price.value) : 0,
+                standard_plan_price: planPriceInputs.standard_plan_price && !isNaN(planPriceInputs.standard_plan_price.value) ? parseFloat(planPriceInputs.standard_plan_price.value) : 0,
+                family_plan_price: planPriceInputs.family_plan_price && !isNaN(planPriceInputs.family_plan_price.value) ? parseFloat(planPriceInputs.family_plan_price.value) : 0
             };
 
-            fetch('/api/config/update', {
+            console.log('Final config:', JSON.stringify(config, null, 2));
+            
+            fetch('/api/config', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(config)
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    alert('Configuration saved successfully!');
-                    // Refresh all tabs to show updated values
-                    loadData('planner');
-                    loadData('optimizer');
-                    loadData('personas');
-                } else if (data.error) {
-                    alert('Error: ' + data.error);
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.error || 'Failed to save configuration');
+                    });
                 }
+                return response.json();
             })
-            .catch((error) => {
-                console.error('Error:', error);
-                alert('Error saving configuration');
+            .then(data => {
+                alert('Configuration saved successfully!');
+                console.log('Save successful:', data);
+                // Refresh all tabs to show updated values
+                loadData('planner');
+                loadData('optimizer');
+                loadData('personas');
+                loadRevenue();
+            })
+            .catch(error => {
+                console.error('Save failed:', error.message);
+                console.error('Config data being sent:', JSON.stringify(config, null, 2));
+                alert('Error: ' + error.message);
             });
         }
 

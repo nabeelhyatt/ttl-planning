@@ -134,9 +134,9 @@ def update_planner_file(updates):
                 # Create new distribution lines
                 new_lines = ['PERSONA_DISTRIBUTION = {\n']
                 for persona, value in updates['distribution'].items():
-                    new_lines.append(f"    '{persona}': {value},\n")
+                    new_line = f"    '{persona}': {value},\n"
+                    new_lines.append(new_line)
                 new_lines.append('}\n')
-                
                 # Replace old lines with new ones
                 lines[i:end_idx+1] = new_lines
     
@@ -180,8 +180,19 @@ def update_config():
             return jsonify({"error": "Invalid distribution format"}), 400
         if not all(isinstance(v, (int, float)) for v in updates['distribution'].values()):
             return jsonify({"error": "Distribution values must be numbers"}), 400
-        if abs(sum(updates['distribution'].values()) - 1.0) > 0.01:
-            return jsonify({"error": "Distribution must sum to 1"}), 400
+        # Normalize distribution values to ensure they sum to 1.0
+        dist_sum = sum(updates['distribution'].values())
+        if dist_sum > 0:  # Avoid division by zero
+            for persona in updates['distribution']:
+                updates['distribution'][persona] = round(updates['distribution'][persona] / dist_sum, 3)
+        
+        print(f"Original distribution values: {updates['distribution']}")
+        print(f"Original sum: {dist_sum}")
+        print(f"Normalized sum: {sum(updates['distribution'].values())}")
+        
+        # Basic validation to ensure we have valid numbers
+        if not all(isinstance(v, (int, float)) and v >= 0 for v in updates['distribution'].values()):
+            return jsonify({"error": "Distribution values must be non-negative numbers"}), 400
     
     # Validate personas
     if 'personas' in updates:
@@ -190,6 +201,11 @@ def update_config():
         for persona_data in updates['personas'].values():
             if not isinstance(persona_data, dict):
                 return jsonify({"error": "Invalid persona data format"}), 400
+            # Convert null/None values to 0
+            for key in persona_data:
+                if persona_data[key] is None:
+                    persona_data[key] = 0
+            # Validate all values are numbers
             if not all(isinstance(v, (int, float)) for v in persona_data.values()):
                 return jsonify({"error": "Persona values must be numbers"}), 400
     
