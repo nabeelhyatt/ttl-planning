@@ -211,6 +211,30 @@
 
     <div class="content" id="config-content">
         <div class="config-section">
+            <h3>Capacity Settings</h3>
+            <div class="config-grid" id="capacity-settings">
+                <div class="config-item">
+                    <label>Number of 4-top Tables</label>
+                    <input type="number" id="num_4_top" value="8" min="0" step="1">
+                </div>
+                <div class="config-item">
+                    <label>Number of 8-top Tables</label>
+                    <input type="number" id="num_8_top" value="3" min="0" step="1">
+                </div>
+                <div class="config-item">
+                    <label>Number of 6-top Tables</label>
+                    <input type="number" id="num_6_top" value="2" min="0" step="1">
+                </div>
+                <div class="config-item">
+                    <label>Number of 2-top Tables</label>
+                    <input type="number" id="num_2_top" value="2" min="0" step="1">
+                </div>
+                <div class="config-item">
+                    <label>Mixed Event Value ($)</label>
+                    <input type="number" id="mixed_value" value="12" min="0" step="1">
+                </div>
+            </div>
+
             <h3>Personas</h3>
             
             <h4>Persona Distribution</h4>
@@ -380,6 +404,15 @@
                 .then(config => {
                     console.log('Received config:', config);  // Debug log
                     
+                    // Update capacity settings if available
+                    if (config.capacity_settings) {
+                        document.querySelector('#num_4_top').value = config.capacity_settings.num_4_top;
+                        document.querySelector('#num_8_top').value = config.capacity_settings.num_8_top;
+                        document.querySelector('#num_6_top').value = config.capacity_settings.num_6_top;
+                        document.querySelector('#num_2_top').value = config.capacity_settings.num_2_top;
+                        document.querySelector('#mixed_value').value = config.capacity_settings.mixed_value;
+                    }
+
                     // Populate persona distribution
                     const distDiv = document.getElementById('persona-distribution');
                     distDiv.innerHTML = '';
@@ -495,13 +528,22 @@
             });
 
             // Collect plan prices
+            // Collect capacity settings
+            config.capacity_settings = {
+                num_4_top: parseInt(document.querySelector('#num_4_top').value),
+                num_8_top: parseInt(document.querySelector('#num_8_top').value),
+                num_6_top: parseInt(document.querySelector('#num_6_top').value),
+                num_2_top: parseInt(document.querySelector('#num_2_top').value),
+                mixed_value: parseFloat(document.querySelector('#mixed_value').value)
+            };
+
             config.plan_prices = {
                 basic_plan_price: parseFloat(document.querySelector('#basic_plan_price').value),
                 standard_plan_price: parseFloat(document.querySelector('#standard_plan_price').value),
                 family_plan_price: parseFloat(document.querySelector('#family_plan_price').value)
             };
 
-            fetch('/api/config/update', {
+            fetch('/api/config', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -510,14 +552,27 @@
             })
             .then(response => response.json())
             .then(data => {
-                if (data.status === 'success') {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
                     alert('Configuration saved successfully!');
+                    // Refresh config values
+                    fetch('/api/config')
+                        .then(response => response.json())
+                        .then(config => {
+                            // Update capacity settings
+                            if (config.capacity_settings) {
+                                document.querySelector('#num_4_top').value = config.capacity_settings.num_4_top;
+                                document.querySelector('#num_8_top').value = config.capacity_settings.num_8_top;
+                                document.querySelector('#num_6_top').value = config.capacity_settings.num_6_top;
+                                document.querySelector('#num_2_top').value = config.capacity_settings.num_2_top;
+                                document.querySelector('#mixed_value').value = config.capacity_settings.mixed_value;
+                            }
+                        });
                     // Refresh all tabs to show updated values
                     loadData('planner');
                     loadData('optimizer');
                     loadData('personas');
-                } else if (data.error) {
-                    alert('Error: ' + data.error);
                 }
             })
             .catch((error) => {

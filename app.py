@@ -61,6 +61,13 @@ def get_persona_data():
 def get_config():
     """Get all configurable constants"""
     config = {
+        'capacity_settings': {
+            'num_4_top': planner.NUM_4_TOP,
+            'num_8_top': planner.NUM_8_TOP,
+            'num_6_top': planner.NUM_6_TOP,
+            'num_2_top': planner.NUM_2_TOP,
+            'mixed_value': planner.MIXED_VALUE
+        },
         'distribution': planner.PERSONA_DISTRIBUTION,
         'personas': planner.PERSONAS,
         'spending_assumptions': getattr(planner, 'SPENDING', {
@@ -137,6 +144,37 @@ def update_planner_file(updates):
                 # Replace old lines with new ones
                 lines[i:end_idx+1] = new_lines
     
+    # Update capacity settings
+    if 'capacity_settings' in updates:
+        settings = updates['capacity_settings']
+        
+        # Update table capacities
+        if 'num_4_top' in settings:
+            for i, line in enumerate(lines):
+                if line.strip().startswith('NUM_4_TOP ='):
+                    lines[i] = f"NUM_4_TOP = {settings['num_4_top']}\n"
+        
+        if 'num_8_top' in settings:
+            for i, line in enumerate(lines):
+                if line.strip().startswith('NUM_8_TOP ='):
+                    lines[i] = f"NUM_8_TOP = {settings['num_8_top']}\n"
+        
+        if 'num_6_top' in settings:
+            for i, line in enumerate(lines):
+                if line.strip().startswith('NUM_6_TOP ='):
+                    lines[i] = f"NUM_6_TOP = {settings['num_6_top']}\n"
+        
+        if 'num_2_top' in settings:
+            for i, line in enumerate(lines):
+                if line.strip().startswith('NUM_2_TOP ='):
+                    lines[i] = f"NUM_2_TOP = {settings['num_2_top']}\n"
+        
+        # Update mixed value
+        if 'mixed_value' in settings:
+            for i, line in enumerate(lines):
+                if line.strip().startswith('MIXED_VALUE ='):
+                    lines[i] = f"MIXED_VALUE = {settings['mixed_value']}\n"
+
     # Write changes back to file
     with open(planner_path, 'w') as f:
         f.writelines(lines)
@@ -168,6 +206,24 @@ def update_config():
                 return jsonify({"error": "Invalid persona data format"}), 400
             if not all(isinstance(v, (int, float)) for v in persona_data.values()):
                 return jsonify({"error": "Persona values must be numbers"}), 400
+    
+    # Validate capacity settings
+    if 'capacity_settings' in updates:
+        settings = updates['capacity_settings']
+        if not isinstance(settings, dict):
+            return jsonify({"error": "Invalid capacity settings format"}), 400
+        
+        # Validate table capacities are positive integers
+        for key in ['num_4_top', 'num_8_top', 'num_6_top', 'num_2_top']:
+            if key in settings:
+                if not isinstance(settings[key], (int, float)) or settings[key] < 0:
+                    return jsonify({"error": f"{key} must be a non-negative number"}), 400
+                settings[key] = int(settings[key])  # Convert to integer
+        
+        # Validate mixed value is a positive number
+        if 'mixed_value' in settings:
+            if not isinstance(settings['mixed_value'], (int, float)) or settings['mixed_value'] < 0:
+                return jsonify({"error": "mixed_value must be a non-negative number"}), 400
     
     # Update the planner file
     update_planner_file(updates)
