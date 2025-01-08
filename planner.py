@@ -19,7 +19,14 @@ WEEKEND_BLOCKS = 9  # ~4.67 blocks/day * 2 days
 # Calculate total 3-hour blocks per month (assuming 4.33 weeks/month)
 # Weekdays: 5PM-11PM (2 blocks/day * 5 days = 10 blocks/week)
 # Weekends: 9AM-11PM (4 blocks/day * 2 days = 8 blocks/week)
+# Total: ~82 blocks/month
 TIME_BLOCKS_PER_MONTH = int((WEEKDAY_BLOCKS + WEEKEND_BLOCKS) * 4.33)  # ~82 blocks/month
+
+# Total monthly table capacity
+MONTHLY_4_TOP_BLOCKS = NUM_4_TOP * TIME_BLOCKS_PER_MONTH  # 8 * 82 = 656 blocks
+MONTHLY_8_TOP_BLOCKS = NUM_8_TOP * TIME_BLOCKS_PER_MONTH  # 3 * 82 = 246 blocks
+MONTHLY_6_TOP_BLOCKS = NUM_6_TOP * TIME_BLOCKS_PER_MONTH  # 2 * 82 = 164 blocks
+MONTHLY_2_TOP_BLOCKS = NUM_2_TOP * TIME_BLOCKS_PER_MONTH  # 2 * 82 = 164 blocks
 
 # Revenue constants
 GUEST_PRICE = 8  # Price per guest
@@ -42,9 +49,9 @@ GUEST_SPENDING_MULTIPLIER = 1  # Guests tend to spend a bit more
 
 # Distribution percentages
 PERSONA_DISTRIBUTION = {
-    'casual': 0.45,    # 45% casual gamers
-    'students': 0.15,  # 15% students
-    'families': 0.15,  # 15% families
+    'casual': 0.25,    # 45% casual gamers
+    'students': 0.25,  # 15% students
+    'families': 0.25,  # 15% families
     'hobbyists': 0.15, # 15% hobbyists
     'everyday': 0.10   # 10% everyday players
 }
@@ -132,220 +139,111 @@ def get_guest_spending_multiplier():
 
 def compute_demands(M):
     """Compute demands for each persona type based on member count M"""
-    # Initialize tracking variables
-    total_4_tops_used = 0
-    total_2_tops_used = 0
-    total_mixed_seats = 0
-    
-    # Track maximum allowed tables (integer-based)
-    MAX_4_TOPS = NUM_4_TOP  # 8 four-tops total
-    MAX_2_TOPS = NUM_2_TOP  # 2 two-tops total
-    MAX_MIXED_SEATS = (NUM_4_TOP * 4 + NUM_2_TOP * 2 + 
-                      NUM_6_TOP * 6 + NUM_8_TOP * 8)  # Total seat capacity
-    
     distribution = PERSONA_DISTRIBUTION
     personas = PERSONAS
     
-    # Initialize demands
-    demands = {
-        'reserved_4_full': 0,    # Number of 4-top tables needed for 4-person reservations (monthly)
-        'reserved_2_split': 0,   # Number of 2-person reservations that can share 4-top (monthly)
-        'reserved_8_full': 0,    # Number of 8-top tables needed for large group reservations (monthly)
-        'reserved_6_full': 0,    # Number of 6-top tables needed for medium group reservations (monthly)
-        'mixed_seats': 0,        # Number of individual seats needed for mixed seating (monthly)
-        'type_demands': {}
+    # Initialize monthly demands
+    monthly_demands = {
+        'reserved_8_blocks': 0,    # Number of 8-top blocks needed
+        'reserved_6_blocks': 0,    # Number of 6-top blocks needed
+        'reserved_4_blocks': 0,    # Number of 4-top blocks needed
+        'reserved_2_blocks': 0,    # Number of 2-person blocks needed
+        'mixed_seat_blocks': 0,    # Number of individual seat blocks needed
+        'type_demands': {}       # Per-persona type demands
     }
+    
+    print(f"\nDetailed Demand Analysis for {M} members:")
+    print("=" * 50)
     
     # For each persona type
     for persona_type, pct in distribution.items():
-        member_count = M * pct
+        member_count = int(M * pct)  # Integer number of members
         persona = personas[persona_type]
         
-        # Calculate per-block visit frequencies
-        # Convert to per-block immediately to prevent overflow
-        reserved_visits = member_count * persona['reserved_visits'] / TIME_BLOCKS_PER_MONTH  # visits per block
-        mixed_visits = member_count * persona['mixed_visits'] / TIME_BLOCKS_PER_MONTH  # visits per block
+        # Calculate total monthly reserved blocks (1 visit = 1 block)
+        monthly_reserved_visits = member_count * persona['reserved_visits']
+        monthly_reserved_blocks = monthly_reserved_visits  # Each visit takes one block
         
-        # Apply ceiling after table distribution to prevent accumulation of roundups
+        # For reserved visits, calculate group size (member + guests)
+        group_size = 1 + persona['guests_per_month']  # member + average guests
         
-        # Calculate average group sizes
-        avg_group_size = persona.get('avg_group_size', 2)
+        print(f"\n{persona_type.title()}:")
+        print(f"  Members: {member_count}")
+        print(f"  Reserved visits per month: {monthly_reserved_visits}")
+        print(f"  Monthly blocks needed: {monthly_reserved_blocks}")
+        print(f"  Group size (member + {persona['guests_per_month']} guests): {group_size}")
         
-        # Calculate per-block table needs for reservations
-        # Distribute between table sizes based on group size
-        # Note: These are now per-block calculations
-        if avg_group_size == 4:
-            four_top_pct = 0.8  # 80% prefer 4-tops
-        elif avg_group_size == 3:
-            four_top_pct = 0.6  # 60% prefer 4-tops
-        else:  # avg_group_size == 2
-            four_top_pct = 0.2  # 20% prefer 4-tops (most use 2-tops)
-            
-        # Calculate per-block demands with better distribution
-        # Distribute reserved visits based on group size and table availability
-        if avg_group_size >= 7:  # Large groups prefer 8-tops but can use 6-tops
-            persona_8_full_raw = min(reserved_visits * 0.5, NUM_8_TOP)  # Up to 50% to 8-tops
-            remaining_after_8 = max(0, reserved_visits * 0.5)
-            persona_6_full_raw = min(remaining_after_8 * 0.7, NUM_6_TOP)  # Up to 70% of remainder to 6-tops
-            persona_4_full_raw = remaining_after_8 * 0.3  # Rest to 4-tops
-            persona_2_split_raw = 0
-        elif avg_group_size >= 5:  # Medium groups prefer 6-tops but can use 4-tops
-            persona_8_full_raw = 0  # Don't use 8-tops for medium groups
-            persona_6_full_raw = min(reserved_visits * 0.6, NUM_6_TOP)  # Up to 60% to 6-tops
-            persona_4_full_raw = reserved_visits * 0.4  # Rest to 4-tops
-            persona_2_split_raw = 0
-        else:  # Small groups use 4-tops and 2-tops
-            persona_8_full_raw = 0
-            persona_6_full_raw = 0
-            
-            # Calculate scaled demand for this persona (limit to 1-2 tables per persona)
-            max_tables_per_persona = 2  # Limit each persona to at most 2 tables of each type
-            total_tables_needed = min(reserved_visits, max_tables_per_persona)
-            
-            # Calculate maximum available tables considering global limits
-            max_4_tops_available = min(
-                2,  # Max 2 tables per persona
-                MAX_4_TOPS - total_4_tops_used  # Remaining global capacity
-            )
-            max_2_tops_available = min(
-                2,  # Max 2 tables per persona
-                MAX_2_TOPS - total_2_tops_used  # Remaining global capacity
-            )
-            
-            # Calculate desired tables within available limits
-            desired_4_tops = min(
-                total_tables_needed * four_top_pct,
-                max_4_tops_available
-            )
-            desired_2_tops = min(
-                total_tables_needed * (1 - four_top_pct),
-                max_2_tops_available
-            )
-            
-            # Allocate tables and update global tracking
-            allocated_4_tops = int(desired_4_tops)  # Ensure integer values
-            allocated_2_tops = int(desired_2_tops)
-            
-            total_4_tops_used += allocated_4_tops
-            total_2_tops_used += allocated_2_tops
-            
-            # Only consider splitting 4-tops if we absolutely need to and have capacity
-            remaining_2_top_demand = max(0, desired_2_tops - allocated_2_tops)
-            remaining_4_top_capacity = MAX_4_TOPS - total_4_tops_used
-            
-            if remaining_2_top_demand > 0 and remaining_4_top_capacity > 0:
-                # Limit splits to available capacity and need
-                four_tops_to_split = min(
-                    math.ceil(remaining_2_top_demand / 2),  # How many 4-tops needed
-                    remaining_4_top_capacity,  # How many 4-tops available
-                    1  # Maximum 1 split per persona to prevent overconsumption
-                )
-                total_4_tops_used += four_tops_to_split
-                allocated_2_tops += four_tops_to_split * 2
-                
-            # Track mixed seating (ensure it stays within total seat capacity)
-            persona_mixed_seats = int(mixed_visits)  # One seat per mixed visit
-            if total_mixed_seats + persona_mixed_seats <= MAX_MIXED_SEATS:
-                total_mixed_seats += persona_mixed_seats
-            else:
-                # Cap mixed seating at remaining capacity
-                persona_mixed_seats = max(0, MAX_MIXED_SEATS - total_mixed_seats)
-                total_mixed_seats = MAX_MIXED_SEATS
-            
-            persona_4_full_raw = allocated_4_tops
-            persona_2_split_raw = allocated_2_tops
+        # Determine table blocks needed based on group size
+        if group_size <= 2:
+            monthly_demands['reserved_2_blocks'] += monthly_reserved_blocks
+            print(f"  → Needs {monthly_reserved_blocks} 2-top blocks")
+        elif group_size <= 4:
+            monthly_demands['reserved_4_blocks'] += monthly_reserved_blocks
+            print(f"  → Needs {monthly_reserved_blocks} 4-top blocks")
+        elif group_size <= 6:
+            monthly_demands['reserved_6_blocks'] += monthly_reserved_blocks
+            print(f"  → Needs {monthly_reserved_blocks} 6-top blocks")
+        else:  # group_size <= 8
+            monthly_demands['reserved_8_blocks'] += monthly_reserved_blocks
+            print(f"  → Needs {monthly_reserved_blocks} 8-top blocks")
         
-        mixed_seats_raw = mixed_visits * avg_group_size
+        # Calculate mixed seating demand (1 seat per person, no guests)
+        monthly_mixed_visits = member_count * persona['mixed_visits']
+        monthly_mixed_blocks = monthly_mixed_visits  # Each mixed visit takes one block
+        monthly_demands['mixed_seat_blocks'] += monthly_mixed_blocks
+        print(f"  Mixed visits per month: {monthly_mixed_visits}")
+        print(f"  Mixed blocks needed: {monthly_mixed_blocks} (1 seat each)")
         
-        # Store per-block type-specific demands with proper rounding
-        demands['type_demands'][persona_type] = {
-            'reserved_8_full': math.ceil(persona_8_full_raw),  # Round up to ensure integer tables
-            'reserved_6_full': math.ceil(persona_6_full_raw),
-            'reserved_4_full': math.ceil(persona_4_full_raw),
-            'reserved_2_split': math.ceil(persona_2_split_raw),
-            'mixed_seats': math.ceil(mixed_seats_raw)
+        # Store per-persona demands
+        monthly_demands['type_demands'][persona_type] = {
+            'reserved_8_blocks': monthly_reserved_blocks if group_size > 6 else 0,
+            'reserved_6_blocks': monthly_reserved_blocks if 4 < group_size <= 6 else 0,
+            'reserved_4_blocks': monthly_reserved_blocks if 2 < group_size <= 4 else 0,
+            'reserved_2_blocks': monthly_reserved_blocks if group_size <= 2 else 0,
+            'mixed_seat_blocks': monthly_mixed_blocks
         }
-        
-        # Update total demands using rounded per-persona values
-        demands['reserved_8_full'] += math.ceil(persona_8_full_raw)
-        demands['reserved_6_full'] += math.ceil(persona_6_full_raw)
-        demands['reserved_4_full'] += math.ceil(persona_4_full_raw)
-        demands['reserved_2_split'] += math.ceil(persona_2_split_raw)
-        demands['mixed_seats'] += math.ceil(mixed_seats_raw)
     
-    # Store raw demands for debugging
-    raw_demands = {
-        'reserved_8_full': demands['reserved_8_full'],
-        'reserved_6_full': demands['reserved_6_full'],
-        'reserved_4_full': demands['reserved_4_full'],
-        'reserved_2_split': demands['reserved_2_split'],
-        'mixed_seats': demands['mixed_seats']
-    }
+    print("\nTotal Monthly Block Demands:")
+    print("-" * 30)
+    print(f"Reserved 8-tops: {monthly_demands['reserved_8_blocks']} blocks ({monthly_demands['reserved_8_blocks']/MONTHLY_8_TOP_BLOCKS*100:.1f}% of capacity)")
+    print(f"Reserved 6-tops: {monthly_demands['reserved_6_blocks']} blocks ({monthly_demands['reserved_6_blocks']/MONTHLY_6_TOP_BLOCKS*100:.1f}% of capacity)")
+    print(f"Reserved 4-tops: {monthly_demands['reserved_4_blocks']} blocks ({monthly_demands['reserved_4_blocks']/MONTHLY_4_TOP_BLOCKS*100:.1f}% of capacity)")
+    print(f"Reserved 2-tops: {monthly_demands['reserved_2_blocks']} blocks ({monthly_demands['reserved_2_blocks']/MONTHLY_2_TOP_BLOCKS*100:.1f}% of capacity)")
+    print(f"Mixed seats: {monthly_demands['mixed_seat_blocks']} seat blocks")
     
-    # Note: Demands are already in per-block format since we calculated them that way
-    # Just ensure all values are integers through rounding up
-    demands['reserved_8_full'] = math.ceil(demands['reserved_8_full'])
-    demands['reserved_6_full'] = math.ceil(demands['reserved_6_full'])
-    demands['reserved_4_full'] = math.ceil(demands['reserved_4_full'])
-    demands['reserved_2_split'] = math.ceil(demands['reserved_2_split'])
-    demands['mixed_seats'] = math.ceil(demands['mixed_seats'])
-    
-    # Debug output to verify calculations
-    print(f"\nDemand Calculation Debug for {M} members:")
-    print(f"Raw monthly demands:")
-    print(f"  Reserved 8-top (full): {raw_demands['reserved_8_full']}")
-    print(f"  Reserved 6-top (full): {raw_demands['reserved_6_full']}")
-    print(f"  Reserved 4-top (full): {raw_demands['reserved_4_full']}")
-    print(f"  Reserved 2-person: {raw_demands['reserved_2_split']}")
-    print(f"  Mixed seats: {raw_demands['mixed_seats']}")
-    print(f"\nPer-block requirements:")
-    print(f"  Reserved 8-top (full): {demands['reserved_8_full']} tables/block")
-    print(f"  Reserved 6-top (full): {demands['reserved_6_full']} tables/block")
-    print(f"  Reserved 4-top (full): {demands['reserved_4_full']} tables/block")
-    print(f"  Reserved 2-person: {demands['reserved_2_split']} tables/block")
-    print(f"  Mixed seats: {demands['mixed_seats']} seats/block")
-    
-    return demands
+    return monthly_demands
 
-def can_accommodate(M, time_blocks=TIME_BLOCKS_PER_MONTH):
-    """Check if we can accommodate M members with current capacity
-    
-    Args:
-        M: Number of members to accommodate
-        time_blocks: Number of 3-hour blocks during operating hours
-                    Weekdays: 5PM-11PM (2 blocks/day * 5 days = 10 blocks/week)
-                    Weekends: 9AM-11PM (~4.67 blocks/day * 2 days = 9 blocks/week)
-                    Total: ~82 blocks/month
-    """
+def can_accommodate(M):
+    """Check if we can accommodate M members with current monthly capacity"""
     demands = compute_demands(M)
     
     # Create optimization model
     model = pulp.LpProblem("Seating_Optimization", pulp.LpMinimize)
     
-    # Decision variables for table allocation
-    # 4-top tables (8 tables that can split into 2x2)
-    reserved_4_full = pulp.LpVariable("reserved_4_full", 0, NUM_4_TOP, cat='Integer')  # Used as full 4-tops
-    reserved_4_split = pulp.LpVariable("reserved_4_split", 0, NUM_4_TOP, cat='Integer')  # Split into 2x2
-    mixed_4_full = pulp.LpVariable("mixed_4_full", 0, NUM_4_TOP, cat='Integer')  # Used as full 4-tops for mixed
-    mixed_4_split = pulp.LpVariable("mixed_4_split", 0, NUM_4_TOP, cat='Integer')  # Split into 2x2 for mixed
+    # Decision variables for monthly block allocation
+    # 4-top tables (8 tables * 82 blocks = 656 blocks/month)
+    reserved_4_full = pulp.LpVariable("reserved_4_full", 0, MONTHLY_4_TOP_BLOCKS, cat='Integer')  # Used as full 4-tops
+    reserved_4_split = pulp.LpVariable("reserved_4_split", 0, MONTHLY_4_TOP_BLOCKS, cat='Integer')  # Split into 2x2
+    mixed_4_full = pulp.LpVariable("mixed_4_full", 0, MONTHLY_4_TOP_BLOCKS, cat='Integer')  # Used as full 4-tops for mixed
+    mixed_4_split = pulp.LpVariable("mixed_4_split", 0, MONTHLY_4_TOP_BLOCKS, cat='Integer')  # Split into 2x2 for mixed
     
-    # 8-top tables (3 tables that can split into 4+2)
-    reserved_8_full = pulp.LpVariable("reserved_8_full", 0, NUM_8_TOP, cat='Integer')  # Used as full 8-tops
-    reserved_8_split = pulp.LpVariable("reserved_8_split", 0, NUM_8_TOP, cat='Integer')  # Split into 4+2
-    mixed_8_full = pulp.LpVariable("mixed_8_full", 0, NUM_8_TOP, cat='Integer')  # Used as full 8-tops for mixed
-    mixed_8_split = pulp.LpVariable("mixed_8_split", 0, NUM_8_TOP, cat='Integer')  # Split into 4+2 for mixed
+    # 8-top tables (3 tables * 82 blocks = 246 blocks/month)
+    reserved_8_full = pulp.LpVariable("reserved_8_full", 0, MONTHLY_8_TOP_BLOCKS, cat='Integer')  # Used as full 8-tops
+    reserved_8_split = pulp.LpVariable("reserved_8_split", 0, MONTHLY_8_TOP_BLOCKS, cat='Integer')  # Split into 4+2
+    mixed_8_full = pulp.LpVariable("mixed_8_full", 0, MONTHLY_8_TOP_BLOCKS, cat='Integer')  # Used as full 8-tops for mixed
+    mixed_8_split = pulp.LpVariable("mixed_8_split", 0, MONTHLY_8_TOP_BLOCKS, cat='Integer')  # Split into 4+2 for mixed
     
-    # 6-top tables (2 tables that can split into 3x2 or 4+2)
-    reserved_6_full = pulp.LpVariable("reserved_6_full", 0, NUM_6_TOP, cat='Integer')  # Used as full 6-tops
-    reserved_6_split_3x2 = pulp.LpVariable("reserved_6_split_3x2", 0, NUM_6_TOP, cat='Integer')  # Split into 3x2
-    reserved_6_split_4_2 = pulp.LpVariable("reserved_6_split_4_2", 0, NUM_6_TOP, cat='Integer')  # Split into 4+2
-    mixed_6_full = pulp.LpVariable("mixed_6_full", 0, NUM_6_TOP, cat='Integer')  # Used as full 6-tops for mixed
-    mixed_6_split_3x2 = pulp.LpVariable("mixed_6_split_3x2", 0, NUM_6_TOP, cat='Integer')  # Split into 3x2 for mixed
-    mixed_6_split_4_2 = pulp.LpVariable("mixed_6_split_4_2", 0, NUM_6_TOP, cat='Integer')  # Split into 4+2 for mixed
+    # 6-top tables (2 tables * 82 blocks = 164 blocks/month)
+    reserved_6_full = pulp.LpVariable("reserved_6_full", 0, MONTHLY_6_TOP_BLOCKS, cat='Integer')  # Used as full 6-tops
+    reserved_6_split_3x2 = pulp.LpVariable("reserved_6_split_3x2", 0, MONTHLY_6_TOP_BLOCKS, cat='Integer')  # Split into 3x2
+    reserved_6_split_4_2 = pulp.LpVariable("reserved_6_split_4_2", 0, MONTHLY_6_TOP_BLOCKS, cat='Integer')  # Split into 4+2
+    mixed_6_full = pulp.LpVariable("mixed_6_full", 0, MONTHLY_6_TOP_BLOCKS, cat='Integer')  # Used as full 6-tops for mixed
+    mixed_6_split_3x2 = pulp.LpVariable("mixed_6_split_3x2", 0, MONTHLY_6_TOP_BLOCKS, cat='Integer')  # Split into 3x2 for mixed
+    mixed_6_split_4_2 = pulp.LpVariable("mixed_6_split_4_2", 0, MONTHLY_6_TOP_BLOCKS, cat='Integer')  # Split into 4+2 for mixed
     
-    # 2-top tables (2 fixed tables)
-    reserved_2 = pulp.LpVariable("reserved_2", 0, NUM_2_TOP, cat='Integer')  # Used for 2-person reservations
-    mixed_2 = pulp.LpVariable("mixed_2", 0, NUM_2_TOP, cat='Integer')  # Used for mixed seating
+    # 2-top tables (2 tables * 82 blocks = 164 blocks/month)
+    reserved_2 = pulp.LpVariable("reserved_2", 0, MONTHLY_2_TOP_BLOCKS, cat='Integer')  # Used for 2-person reservations
+    mixed_2 = pulp.LpVariable("mixed_2", 0, MONTHLY_2_TOP_BLOCKS, cat='Integer')  # Used for mixed seating
     
     # Objective: Balance table usage between reserved and mixed seating
     # 1. Reserved seating gets priority
@@ -386,40 +284,43 @@ def can_accommodate(M, time_blocks=TIME_BLOCKS_PER_MONTH):
         )
     )
     
-    # Constraints
+    # Monthly capacity constraints
+    # 4-top tables
+    model += (reserved_4_full + reserved_4_split + 
+             mixed_4_full + mixed_4_split) <= MONTHLY_4_TOP_BLOCKS, "4_top_capacity"
+             
+    # 8-top tables
+    model += (reserved_8_full + reserved_8_split +
+             mixed_8_full + mixed_8_split) <= MONTHLY_8_TOP_BLOCKS, "8_top_capacity"
+             
+    # 6-top tables
+    model += (reserved_6_full + reserved_6_split_3x2 + reserved_6_split_4_2 +
+             mixed_6_full + mixed_6_split_3x2 + mixed_6_split_4_2) <= MONTHLY_6_TOP_BLOCKS, "6_top_capacity"
+             
+    # 2-top tables
+    model += (reserved_2 + mixed_2) <= MONTHLY_2_TOP_BLOCKS, "2_top_capacity"
     
-    # Use the already-rounded per-block requirements from compute_demands()
-    # Note: Each 3-hour block is treated as a discrete unit
-    # - One table per reservation for the full block
-    # - Mixed seating fills available seats in the block
-    reserved_8_per_block = demands['reserved_8_full']  # Already rounded up
-    reserved_6_per_block = demands['reserved_6_full']  # Already rounded up
-    reserved_4_per_block = demands['reserved_4_full']  # Already rounded up
-    reserved_2_per_block = demands['reserved_2_split']  # Already rounded up
-    mixed_demand_per_block = demands['mixed_seats']  # Already rounded up
+    # Meet monthly reservation demands
+    # Each group size can be accommodated by its size table or larger
+    # 8-person groups
+    model += reserved_8_full >= demands['reserved_8_blocks'], "8_person_demand"
     
-    # Meet reservation demands
-    model += reserved_4_full >= reserved_4_per_block
-    model += reserved_4_split * 2 >= reserved_2_per_block  # Each split table serves 2 groups
+    # 6-person groups (can use 8-tops or 6-tops)
+    model += (reserved_6_full + 
+             reserved_8_split) >= demands['reserved_6_blocks'], "6_person_demand"
     
-    # Meet mixed seating demand with more flexible constraints
-    model += (
-        # 4-tops
-        mixed_4_full * 4 +  # Each full 4-top serves 4 people
-        mixed_4_split * 2 +  # Each split 4-top serves 2 people
-        # 8-tops
-        mixed_8_full * 8 +  # Each full 8-top serves 8 people
-        mixed_8_split * 6 +  # Each split 8-top serves 6 people (4+2)
-        # 6-tops
-        mixed_6_full * 6 +  # Each full 6-top serves 6 people
-        mixed_6_split_3x2 * 5 +  # Each 3x2 split serves 5 people
-        mixed_6_split_4_2 * 6 +  # Each 4+2 split serves 6 people
-        # 2-tops
-        mixed_2 * 2  # Each 2-top serves 2 people
-    ) >= mixed_demand_per_block
-
-    # Mixed seating distribution constraints
-    # Total mixed seating across all table types must meet but not exceed demand
+    # 4-person groups (can use 4-tops, 6-tops, or 8-tops)
+    model += (reserved_4_full + 
+             reserved_6_split_4_2 +
+             reserved_8_split) >= demands['reserved_4_blocks'], "4_person_demand"
+    
+    # 2-person groups (can use 2-tops or split larger tables)
+    model += (reserved_2 + 
+             reserved_4_split * 2 +  # Each split 4-top gives two 2-person slots
+             reserved_6_split_3x2 * 2 +  # Each split 6-top gives two 2-person slots
+             reserved_8_split) >= demands['reserved_2_blocks'], "2_person_demand"
+    
+    # Meet mixed seating demand
     model += (
         # 4-tops contribution
         mixed_4_full * 4 + mixed_4_split * 2 +
@@ -429,51 +330,8 @@ def can_accommodate(M, time_blocks=TIME_BLOCKS_PER_MONTH):
         mixed_6_full * 6 + mixed_6_split_3x2 * 5 + mixed_6_split_4_2 * 6 +
         # 2-tops contribution
         mixed_2 * 2
-    ) == mixed_demand_per_block  # Total mixed seating must exactly meet demand
+    ) >= demands['mixed_seat_blocks'], "mixed_seating_demand"
     
-    # Soft upper bounds on each table type's contribution (to encourage distribution)
-    model += mixed_4_full * 4 + mixed_4_split * 2 <= mixed_demand_per_block * 0.4  # 4-tops handle up to 40%
-    model += mixed_8_full * 8 + mixed_8_split * 6 <= mixed_demand_per_block * 0.3  # 8-tops handle up to 30%
-    model += mixed_6_full * 6 + mixed_6_split_3x2 * 5 + mixed_6_split_4_2 * 6 <= mixed_demand_per_block * 0.2  # 6-tops handle up to 20%
-    model += mixed_2 * 2 <= mixed_demand_per_block * 0.1  # 2-tops handle up to 10%
-    
-    # Table capacity constraints - ensure total tables used doesn't exceed capacity
-    # 4-top tables (8 tables)
-    model += (reserved_4_full + reserved_4_split + 
-             mixed_4_full + mixed_4_split) <= NUM_4_TOP, "4_top_capacity"
-             
-    # 8-top tables (3 tables)
-    model += (reserved_8_full + reserved_8_split +
-             mixed_8_full + mixed_8_split) <= NUM_8_TOP, "8_top_capacity"
-             
-    # 6-top tables (2 tables)
-    model += (reserved_6_full + reserved_6_split_3x2 + reserved_6_split_4_2 +
-             mixed_6_full + mixed_6_split_3x2 + mixed_6_split_4_2) <= NUM_6_TOP, "6_top_capacity"
-             
-    # 2-top tables (2 fixed tables)
-    model += (reserved_2 + mixed_2) <= NUM_2_TOP, "2_top_capacity"
-    
-    # Splitting priority constraints using binary variables
-    # Define binary variables for when splitting is allowed
-    can_split_4 = pulp.LpVariable("can_split_4", 0, 1, cat='Binary')
-    can_split_8 = pulp.LpVariable("can_split_8", 0, 1, cat='Binary')
-    can_split_6 = pulp.LpVariable("can_split_6", 0, 1, cat='Binary')
-    
-    # Big-M constant (should be larger than maximum possible demand)
-    M = NUM_4_TOP + NUM_8_TOP + NUM_6_TOP + NUM_2_TOP
-    
-    # 4-tops: Only split if full table demand is satisfied
-    model += reserved_4_full >= reserved_4_per_block - M * (1 - can_split_4), "4_top_full_priority"
-    model += reserved_4_split <= M * can_split_4, "4_top_split_limit"
-    
-    # 8-tops: Only split if smaller table demands are satisfied
-    model += reserved_8_full >= reserved_8_per_block - M * (1 - can_split_8), "8_top_full_priority"
-    model += reserved_8_split <= M * can_split_8, "8_top_split_limit"
-    
-    # 6-tops: Only split if smaller table demands are satisfied
-    model += reserved_6_full >= reserved_6_per_block - M * (1 - can_split_6), "6_top_full_priority"
-    model += (reserved_6_split_3x2 + reserved_6_split_4_2) <= M * can_split_6, "6_top_split_limit"
-
     # Solve the model
     model.solve()
 
@@ -502,37 +360,32 @@ def can_accommodate(M, time_blocks=TIME_BLOCKS_PER_MONTH):
                 'reserved_2': reserved_2.value(),
                 'mixed_2': mixed_2.value()
             },
-            'demands': demands,
-            'time_blocks': time_blocks
+            'demands': demands
         }
         
-        # Calculate utilization rates for each table type
-        four_top_util = (results['tables']['reserved_4_full'] + 
-                       results['tables']['reserved_4_split'] + 
-                       results['tables']['mixed_4_full'] + 
-                       results['tables']['mixed_4_split'])/NUM_4_TOP * 100
+        # Calculate utilization rates
+        results['utilization'] = {
+            '4_top': (results['tables']['reserved_4_full'] + 
+                     results['tables']['reserved_4_split'] + 
+                     results['tables']['mixed_4_full'] + 
+                     results['tables']['mixed_4_split']) / MONTHLY_4_TOP_BLOCKS * 100,
+            
+            '8_top': (results['tables']['mixed_8_full'] / MONTHLY_8_TOP_BLOCKS) * 100,
+            
+            '6_top': (results['tables']['reserved_6_full'] +
+                     results['tables']['reserved_6_split_3x2'] +
+                     results['tables']['reserved_6_split_4_2'] +
+                     results['tables']['mixed_6_full'] +
+                     results['tables']['mixed_6_split_3x2'] +
+                     results['tables']['mixed_6_split_4_2']) / MONTHLY_6_TOP_BLOCKS * 100,
+            
+            '2_top': (results['tables']['reserved_2'] +
+                     results['tables']['mixed_2']) / MONTHLY_2_TOP_BLOCKS * 100
+        }
         
-        eight_top_util = (results['tables']['reserved_8_full'] +
-                        results['tables']['reserved_8_split'] +
-                        results['tables']['mixed_8_full'] +
-                        results['tables']['mixed_8_split'])/NUM_8_TOP * 100
-        
-        six_top_util = (results['tables']['reserved_6_full'] +
-                      results['tables']['reserved_6_split_3x2'] +
-                      results['tables']['reserved_6_split_4_2'] +
-                      results['tables']['mixed_6_full'] +
-                      results['tables']['mixed_6_split_3x2'] +
-                      results['tables']['mixed_6_split_4_2'])/NUM_6_TOP * 100
-        
-        two_top_util = (results['tables']['reserved_2'] +
-                      results['tables']['mixed_2'])/NUM_2_TOP * 100
-        
-        # Return True if no table type exceeds capacity
-        if (four_top_util <= 100 and eight_top_util <= 100 and 
-            six_top_util <= 100 and two_top_util <= 100):
-            return True, results
-    
-    return False, None
+        return True, results
+    else:
+        return False, None
 
 def analyze_capacity(test_members=[200, 250, 300, 350, 400]):
     """Analyze capacity for different member counts"""
@@ -550,11 +403,11 @@ def analyze_capacity(test_members=[200, 250, 300, 350, 400]):
         # - Mixed seating fills available seats in the block
         
         # For 4-tops: count full tables and tables needed for 2-person splits
-        four_top_tables = demands['reserved_4_full']
-        split_tables_needed = math.ceil(demands['reserved_2_split'] / 2)  # Each 4-top gives two 2-person slots
+        four_top_tables = demands['reserved_4_blocks']
+        split_tables_needed = math.ceil(demands['reserved_2_blocks'] / 2)  # Each 4-top gives two 2-person slots
         
         # For mixed seating: calculate total seats needed per block
-        mixed_seats = demands['mixed_seats']
+        mixed_seats = demands['mixed_seat_blocks']
         
         if can_accommodate(M)[0]:
             results.append(f"{M} members: ✓ can accommodate")
@@ -589,7 +442,7 @@ def analyze_capacity(test_members=[200, 250, 300, 350, 400]):
                     print(f"Mixed seating (full): {results['tables']['mixed_4_full']:.1f} tables ({results['tables']['mixed_4_full']*4:.1f} seats)")
                     print(f"Mixed seating (split): {results['tables']['mixed_4_split']:.1f} tables ({results['tables']['mixed_4_split']*2:.1f} seats)")
                     print("\n8-top tables:")
-                    print(f"Mixed seating: {results['tables']['mixed_8']:.1f} tables ({results['tables']['mixed_8']*8:.1f} seats)")
+                    print(f"Mixed seating: {results['tables']['mixed_8_full']:.1f} tables ({results['tables']['mixed_8_full']*8:.1f} seats)")
                 
                 print("\nOperating Hours:")
                 print("-" * 20)
@@ -601,36 +454,36 @@ def analyze_capacity(test_members=[200, 250, 300, 350, 400]):
             print("-" * 20)
             for persona_type, type_demands in demands['type_demands'].items():
                 print(f"\n{persona_type.title()}:")
-                print(f"  Full 4-top reservations needed: {type_demands['reserved_4_full']:.1f}")
-                print(f"  2-person reservations needed: {type_demands['reserved_2_split']:.1f}")
-                print(f"  Mixed seats needed: {type_demands['mixed_seats']:.1f}")
+                print(f"  Full 4-top reservations needed: {type_demands['reserved_4_blocks']:.1f}")
+                print(f"  2-person reservations needed: {type_demands['reserved_2_blocks']:.1f}")
+                print(f"  Mixed seats needed: {type_demands['mixed_seat_blocks']:.1f}")
             
             print("\nUtilization Rates:")
             print("-" * 20)
             # Calculate utilization rates
             four_top_util = ((results['tables']['reserved_4_full'] + results['tables']['reserved_4_split'] + 
-                           results['tables']['mixed_4_full'] + results['tables']['mixed_4_split'])/6) * 100
-            eight_top_util = (results['tables']['mixed_8']/3) * 100
+                           results['tables']['mixed_4_full'] + results['tables']['mixed_4_split'])/MONTHLY_4_TOP_BLOCKS) * 100
+            eight_top_util = (results['tables']['mixed_8_full']/MONTHLY_8_TOP_BLOCKS) * 100
             print(f"4-top tables: {four_top_util:.1f}%")
             print(f"8-top tables: {eight_top_util:.1f}%")
-            print(f"Overall: {(four_top_util * 6 + eight_top_util * 3)/(6 + 3):.1f}%")
+            print(f"Overall: {(four_top_util * NUM_4_TOP + eight_top_util * NUM_8_TOP)/(NUM_4_TOP + NUM_8_TOP):.1f}%")
         else:
             print(f"✗ Cannot accommodate {M} members")
             demands = compute_demands(M)
             
             print("\nDemands that couldn't be met:")
             print("-" * 20)
-            print(f"Full 4-top reservations needed: {demands['reserved_4_full']/TIME_BLOCKS_PER_MONTH:.1f}")
-            print(f"2-person reservations needed: {demands['reserved_2_split']/TIME_BLOCKS_PER_MONTH:.1f}")
-            print(f"Mixed seats needed: {demands['mixed_seats']:.1f}")
+            print(f"Full 4-top blocks needed: {demands['reserved_4_blocks']}")
+            print(f"2-person blocks needed: {demands['reserved_2_blocks']}")
+            print(f"Mixed seat blocks needed: {demands['mixed_seat_blocks']}")
             
             print("\nBy Persona Type:")
             print("-" * 20)
             for persona_type, type_demands in demands['type_demands'].items():
                 print(f"\n{persona_type.title()}:")
-                print(f"  Full 4-top reservations needed: {type_demands['reserved_4_full']:.1f}")
-                print(f"  2-person reservations needed: {type_demands['reserved_2_split']:.1f}")
-                print(f"  Mixed seats needed: {type_demands['mixed_seats']:.1f}")
+                print(f"  Full 4-top blocks needed: {type_demands['reserved_4_blocks']}")
+                print(f"  2-person blocks needed: {type_demands['reserved_2_blocks']}")
+                print(f"  Mixed seat blocks needed: {type_demands['mixed_seat_blocks']}")
     
     return can_fit
 
