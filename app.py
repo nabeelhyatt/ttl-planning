@@ -40,8 +40,24 @@ def get_constants():
 @app.route('/api/planner')
 def get_planner_data():
     # Create a planner instance and run analysis
-    output = capture_output(planner.analyze_capacity)
-    return jsonify({"output": output})
+    test_members = [200, 250, 300, 350, 400]
+    results = []
+    for M in test_members:
+        if planner.can_accommodate(M)[0]:
+            results.append((M, True))
+        else:
+            results.append((M, False))
+    
+    # Get summary
+    summary = planner.generate_summary(test_members, results)
+    
+    # Get detailed analysis
+    detailed_output = capture_output(planner.analyze_capacity)
+    
+    return jsonify({
+        "summary": summary,
+        "detailed_output": detailed_output
+    })
 
 @app.route('/api/optimizer')
 def get_optimizer_data():

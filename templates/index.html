@@ -184,6 +184,32 @@
         .revenue-item .percentage {
             color: #666;
         }
+
+        .summary-box {
+            background: #f0f7ff;
+            border: 2px solid #3478F6;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .summary-box h2 {
+            color: #3478F6;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .summary-box ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .summary-box li {
+            margin-bottom: 8px;
+        }
     </style>
 </head>
 <body>
@@ -198,6 +224,9 @@
     </div>
 
     <div class="content active" id="planner-content">
+        <div class="summary-box">
+            <div id="planner-summary"></div>
+        </div>
         <pre id="planner-output">Loading...</pre>
     </div>
 
@@ -299,11 +328,20 @@
             fetch(endpoint)
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById(`${tabName}-output`).innerHTML = `<pre>${data.output}</pre>`;
+                    if (tabName === 'planner') {
+                        document.getElementById('planner-summary').innerHTML = data.summary;
+                        document.getElementById('planner-output').textContent = data.detailed_output;
+                    } else {
+                        document.getElementById(`${tabName}-output`).innerHTML = `<pre>${data.output}</pre>`;
+                    }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    document.getElementById(`${tabName}-output`).innerHTML = 'Error loading data';
+                    if (tabName === 'planner') {
+                        document.getElementById('planner-output').innerHTML = 'Error loading data';
+                    } else {
+                        document.getElementById(`${tabName}-output`).innerHTML = 'Error loading data';
+                    }
                 });
         }
 

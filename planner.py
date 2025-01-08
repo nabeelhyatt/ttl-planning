@@ -387,36 +387,82 @@ def can_accommodate(M):
     else:
         return False, None
 
+def generate_summary(test_members, results_list):
+    """Generate a high-level summary of capacity analysis"""
+    max_feasible = 0
+    bottleneck_info = {}
+    
+    for M in test_members:
+        can_fit, results = can_accommodate(M)
+        if can_fit:
+            max_feasible = M
+        else:
+            demands = compute_demands(M)
+            # Find which table type and persona is causing the bottleneck
+            bottleneck = {'table_type': None, 'persona': None, 'utilization': 0, 'total_utilization': 0}
+            
+            # Calculate total demand across all personas
+            total_4_top_demand = sum(
+                type_demands['reserved_4_blocks'] + 
+                type_demands['reserved_2_blocks']/2 + 
+                type_demands['mixed_seat_blocks']/4
+                for type_demands in demands['type_demands'].values()
+            )
+            total_utilization = (total_4_top_demand / MONTHLY_4_TOP_BLOCKS) * 100
+            
+            # Find which persona has highest individual demand
+            for persona, type_demands in demands['type_demands'].items():
+                persona_4_top_demand = (type_demands['reserved_4_blocks'] + 
+                                    type_demands['reserved_2_blocks']/2 + 
+                                    type_demands['mixed_seat_blocks']/4)
+                utilization = (persona_4_top_demand / MONTHLY_4_TOP_BLOCKS) * 100
+                if utilization > bottleneck['utilization']:
+                    bottleneck['utilization'] = utilization
+                    bottleneck['table_type'] = '4-top'
+                    bottleneck['persona'] = persona
+            
+            bottleneck['total_utilization'] = total_utilization
+            bottleneck_info[M] = bottleneck
+            break  # We only need the first failing case
+    
+    summary = []
+    summary.append("🎲 Capacity Analysis Overview")
+    summary.append("=" * 35)
+    summary.append("")  # Add spacing
+    
+    if max_feasible > 0:
+        summary.append(f"✅ Maximum Feasible Members: {max_feasible}")
+    else:
+        summary.append("❌ Cannot accommodate even the minimum tested member count")
+    
+    first_fail = min([m for m in test_members if m > max_feasible], default=None)
+    if first_fail and first_fail in bottleneck_info:
+        bottleneck = bottleneck_info[first_fail]
+        summary.append("")  # Add spacing
+        summary.append(f"📊 Bottleneck at {first_fail} members:")
+        summary.append(f"• Total Table Utilization: {bottleneck['total_utilization']:.1f}%")
+        summary.append("")  # Add spacing
+        summary.append("Highest Individual Impact:")
+        summary.append(f"• Persona Type: {bottleneck['persona'].title()}")
+        summary.append(f"• Their Utilization: {bottleneck['utilization']:.1f}%")
+        summary.append(f"• Table Type: {bottleneck['table_type']}")
+    
+    return "\n".join(summary)
+
 def analyze_capacity(test_members=[200, 250, 300, 350, 400]):
     """Analyze capacity for different member counts"""
-    print("Capacity Analysis Summary")
-    print("=" * 50)
-    
     results = []
     for M in test_members:
         demands = compute_demands(M)
-        total_tables = NUM_4_TOP + NUM_8_TOP + NUM_6_TOP + NUM_2_TOP
-        
-        # Calculate tables needed per block
-        # Note: Each 3-hour block is treated as a discrete unit
-        # - One table per reservation for the full block
-        # - Mixed seating fills available seats in the block
-        
-        # For 4-tops: count full tables and tables needed for 2-person splits
-        four_top_tables = demands['reserved_4_blocks']
-        split_tables_needed = math.ceil(demands['reserved_2_blocks'] / 2)  # Each 4-top gives two 2-person slots
-        
-        # For mixed seating: calculate total seats needed per block
-        mixed_seats = demands['mixed_seat_blocks']
-        
         if can_accommodate(M)[0]:
-            results.append(f"{M} members: ✓ can accommodate")
+            results.append((M, True))
         else:
-            results.append(f"{M} members: ✗ cannot accommodate")
+            results.append((M, False))
     
-    # Print summary
-    for result in results:
-        print(result)
+    # Generate and print the summary first
+    summary = generate_summary(test_members, results)
+    print(summary)
+    
     print("\nDetailed Analysis")
     print("=" * 50)
     
