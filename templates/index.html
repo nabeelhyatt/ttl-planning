@@ -357,12 +357,22 @@
                 for (const [persona, revenue] of Object.entries(data.persona_revenues)) {
                     const personaDiv = document.createElement('div');
                     personaDiv.className = 'persona-revenue';
+                    const planType = revenue.plan_type.charAt(0).toUpperCase() + revenue.plan_type.slice(1);
+                    let extrasString = '';
+                    if (revenue.extra_guest_passes > 0) {
+                        extrasString = ` +${revenue.extra_guest_passes} guest passes`;
+                    }
+                    if (revenue.is_family_plan) {
+                        extrasString += ', +family plan';
+                    }
                     personaDiv.innerHTML = `
-                        <div class="details">
-                            <strong>${capitalize(persona)}</strong>
-                            <span class="member-count">${Math.round(revenue.member_count)} members</span>
+                        <div class="persona-header">
+                            <strong>${capitalize(persona)}</strong> (${Math.round(revenue.member_count)} members)
                         </div>
-                        <div>
+                        <div class="plan-details" style="margin-top: 4px;">
+                            ${planType} plan.${extrasString}
+                        </div>
+                        <div class="revenue-details" style="margin-top: 8px;">
                             $${revenue.total.toFixed(2)}/mo ($${revenue.membership.toFixed(2)} membership + $${revenue.extras.toFixed(2)} extras)
                         </div>
                     `;

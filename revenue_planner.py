@@ -99,7 +99,10 @@ class RevenuePlanner:
                 'membership': membership_revenue,
                 'extras': guest_revenue + mixed_revenue + snack_revenue + retail_revenue,
                 'total': total_persona_revenue,
-                'member_count': member_count
+                'member_count': member_count,
+                'plan_type': plan_type,
+                'extra_guest_passes': max(0, persona_data['guests_per_month'] - plan_features['guest_passes']),
+                'is_family_plan': (plan_type == 'family')
             }
         
         # Calculate total monthly revenue
