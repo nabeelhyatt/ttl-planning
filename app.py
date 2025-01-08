@@ -3,6 +3,7 @@ from flask_cors import CORS
 import planner
 import plan_optimizer
 import persona_optimization
+import revenue_planner
 import os
 import io
 import sys
@@ -72,6 +73,13 @@ def get_persona_data():
     optimizer = persona_optimization.PersonaOptimizer()
     output = capture_output(optimizer.print_optimization_results)
     return jsonify({"output": output})
+
+@app.route('/api/revenue')
+def get_revenue():
+    # Create a revenue planner instance and get monthly revenue data
+    planner = revenue_planner.RevenuePlanner()
+    results = planner.calculate_monthly_revenue()
+    return jsonify(results)
 
 @app.route('/api/config')
 def get_config():
