@@ -59,46 +59,13 @@ PERSONA_DISTRIBUTION = {
 # Persona prices, guests, and visit mixes
 PERSONAS = {
     'casual': {
-        'price': 5,
-        'guests_per_reserved': 0,
-        'reserved_visits': 1,
-        'mixed_visits': 1,
-        'guest_passes': 0,
-        'guest_discount': 0,
+        'price': 5,   # price willing to pay per visit
+        'guests_per_month': 1,   # Average guests brought per month
+        'reserved_visits': 1,    # visits/month
+        'mixed_visits': 1,       # mixed visits/month
+        'game_checkouts': 0,     # game checkouts per month
+        'avg_group_size': 2      # member + average guests
     },
-    'everyday': {
-        'price': 5,
-        'guests_per_reserved': 0,
-        'reserved_visits': 8,
-        'mixed_visits': 4,
-        'guest_passes': 0,
-        'guest_discount': 0,
-    },
-    'families': {
-        'price': 15,
-        'guests_per_reserved': 0,
-        'reserved_visits': 3,
-        'mixed_visits': 2,
-        'guest_passes': 0,
-        'guest_discount': 0,
-    },
-    'hobbyists': {
-        'price': 10,
-        'guests_per_reserved': 0,
-        'reserved_visits': 4,
-        'mixed_visits': 2,
-        'guest_passes': 0,
-        'guest_discount': 0,
-    },
-    'students': {
-        'price': 5,
-        'guests_per_reserved': 0,
-        'reserved_visits': 8,
-        'mixed_visits': 1,
-        'guest_passes': 0,
-        'guest_discount': 0,
-    },
-}
     'everyday': {
         'price': 5,   # price willing to pay per visit
         'guests_per_month': 3,   # Assumes 3 guests for a 4-top
