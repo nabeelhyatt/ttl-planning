@@ -285,8 +285,11 @@
         // Helper function for authenticated fetch requests
         function authenticatedFetch(url, options = {}) {
             const credentials = btoa('user:0a82f59436f2ccda6420b060c7eecffe');
-            // Use full URL for API requests
-            const apiUrl = url.startsWith('http') ? url : `https://config-update-app-tunnel-dz0k8l9j.devinapps.com${url}`;
+            // Dynamically determine base URL based on hostname
+            const baseUrl = window.location.hostname.includes('127.0.0.1') || window.location.hostname === 'localhost'
+                ? window.location.origin
+                : 'https://config-update-app-tunnel-dz0k8l9j.devinapps.com';
+            const apiUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
             console.log('Making authenticated request to:', apiUrl);
             const headers = {
                 'Authorization': `Basic ${credentials}`,
@@ -580,10 +583,9 @@
                 console.log('Save response:', data);
                 if (data.message === 'Config updated successfully') {
                     alert('Configuration saved successfully!');
-                    // Refresh all tabs to show updated values
-                    loadData('planner');
-                    loadData('optimizer');
-                    loadData('personas');
+                    // Reload the page to ensure we get fresh config values
+                    window.location.reload();
+                    return;
                 } else if (data.error) {
                     alert('Error: ' + data.error);
                 }
