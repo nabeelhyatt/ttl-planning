@@ -8,10 +8,24 @@ import io
 import sys
 import importlib
 from contextlib import redirect_stdout
+from functools import wraps
 
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
 app = Flask(__name__, template_folder=template_dir)
-CORS(app)
+CORS(app, supports_credentials=True)
+
+def check_auth(username, password):
+    """Validate credentials"""
+    return username == 'user' and password == '0a82f59436f2ccda6420b060c7eecffe'
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return jsonify({"error": "Unauthorized"}), 401
+        return f(*args, **kwargs)
+    return decorated
 
 def capture_output(func, *args, **kwargs):
     """Capture stdout from a function call"""
@@ -75,8 +89,10 @@ def get_persona_data():
     return jsonify({"output": output})
 
 @app.route('/api/config')
+@requires_auth
 def get_config():
     """Get all configurable constants"""
+    print("Config requested, current distribution:", planner.PERSONA_DISTRIBUTION)
     config = {
         'distribution': planner.PERSONA_DISTRIBUTION,
         'personas': planner.PERSONAS,
@@ -159,6 +175,7 @@ def update_planner_file(updates):
         f.writelines(lines)
 
 @app.route('/api/config', methods=['POST'])
+@requires_auth
 def update_config():
     """Update configurable constants"""
     updates = request.get_json()
@@ -186,12 +203,22 @@ def update_config():
             if not all(isinstance(v, (int, float)) for v in persona_data.values()):
                 return jsonify({"error": "Persona values must be numbers"}), 400
     
+    # Debug logging before update
+    print("Current distribution before update:", planner.PERSONA_DISTRIBUTION)
+    print("Config update requested with:", updates)
+    
     # Update the planner file
     update_planner_file(updates)
     
+    # Debug logging after file update
+    with open(os.path.join(os.path.dirname(__file__), 'planner.py'), 'r') as f:
+        print("Current PERSONA_DISTRIBUTION in file:", [line.strip() for line in f if 'PERSONA_DISTRIBUTION' in line])
+    
     # Reload the planner module to pick up new changes
     importlib.reload(planner)
+    print("planner.py reloaded, new distribution:", planner.PERSONA_DISTRIBUTION)
     
+    print("Config update successful, distribution is now:", planner.PERSONA_DISTRIBUTION)
     return jsonify({"message": "Config updated successfully"})
 
 if __name__ == '__main__':

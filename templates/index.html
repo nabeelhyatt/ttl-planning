@@ -282,6 +282,26 @@
     </div>
 
     <script>
+        // Helper function for authenticated fetch requests
+        function authenticatedFetch(url, options = {}) {
+            const credentials = btoa('user:0a82f59436f2ccda6420b060c7eecffe');
+            // Use full URL for API requests
+            const apiUrl = url.startsWith('http') ? url : `https://config-update-app-tunnel-dz0k8l9j.devinapps.com${url}`;
+            console.log('Making authenticated request to:', apiUrl);
+            const headers = {
+                'Authorization': `Basic ${credentials}`,
+                ...options.headers
+            };
+            return fetch(apiUrl, { 
+                ...options, 
+                headers,
+                credentials: 'include'  // Include credentials in request
+            }).catch(error => {
+                console.error('Fetch error:', error);
+                throw error;
+            });
+        }
+
         function switchTab(tabName) {
             // Hide all content sections
             document.querySelectorAll('.content').forEach(section => {
@@ -325,7 +345,7 @@
                     return;
             }
 
-            fetch(endpoint)
+            authenticatedFetch(endpoint)
                 .then(response => response.json())
                 .then(data => {
                     if (tabName === 'planner') {
@@ -347,7 +367,7 @@
 
         async function loadRevenue() {
             try {
-                const response = await fetch('/api/revenue');
+                const response = await authenticatedFetch('/api/revenue');
                 const data = await response.json();
                 
                 // Update persona revenues
@@ -413,9 +433,17 @@
 
         // Load config values when the page loads
         window.addEventListener('load', function() {
-            fetch('/api/config')
-                .then(response => response.json())
+            console.log('Fetching config...');
+            authenticatedFetch('/api/config')
+                .then(response => {
+                    console.log('Config response:', response);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(config => {
+                    console.log('Parsed config:', config);
                     console.log('Received config:', config);  // Debug log
                     
                     // Populate persona distribution
@@ -539,7 +567,8 @@
                 family_plan_price: parseFloat(document.querySelector('#family_plan_price').value)
             };
 
-            fetch('/api/config/update', {
+            console.log('Saving config with data:', config);
+            authenticatedFetch('/api/config', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -548,7 +577,8 @@
             })
             .then(response => response.json())
             .then(data => {
-                if (data.status === 'success') {
+                console.log('Save response:', data);
+                if (data.message === 'Config updated successfully') {
                     alert('Configuration saved successfully!');
                     // Refresh all tabs to show updated values
                     loadData('planner');
