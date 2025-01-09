@@ -268,7 +268,22 @@
             </div>
 
             <button onclick="saveConfig()" class="save-button">Save Changes</button>
-            <div id="config-status" style="margin-top: 10px; text-align: center; display: none;"></div>
+            <div id="config-status" style="margin-top: 10px; text-align: center; padding: 10px; border-radius: 4px; display: none;"></div>
+            <script>
+                // Ensure config-status div exists
+                window.addEventListener('DOMContentLoaded', (event) => {
+                    if (!document.getElementById('config-status')) {
+                        const statusDiv = document.createElement('div');
+                        statusDiv.id = 'config-status';
+                        statusDiv.style.marginTop = '10px';
+                        statusDiv.style.textAlign = 'center';
+                        statusDiv.style.padding = '10px';
+                        statusDiv.style.borderRadius = '4px';
+                        statusDiv.style.display = 'none';
+                        document.querySelector('.save-button').insertAdjacentElement('afterend', statusDiv);
+                    }
+                });
+            </script>
         </div>
     </div>
 
@@ -331,6 +346,93 @@
                 loadData('personas');
             } else if (tabName === 'revenue') {
                 loadRevenue();
+            } else if (tabName === 'config') {
+                console.log('Loading config tab...');
+                authenticatedFetch('/api/config')
+                    .then(response => {
+                        console.log('Config response:', response);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(config => {
+                        console.log('Parsed config:', config);
+                        populateConfigForm(config);
+                    })
+                    .catch(error => {
+                        console.error('Error loading config:', error);
+                    });
+            }
+        }
+
+        function populateConfigForm(config) {
+            // Populate persona distribution
+            const distDiv = document.getElementById('persona-distribution');
+            distDiv.innerHTML = '';
+            for (const [persona, percentage] of Object.entries(config.distribution)) {
+                const displayName = persona.charAt(0).toUpperCase() + persona.slice(1);
+                distDiv.innerHTML += `
+                    <div class="config-item">
+                        <label>${displayName} (%)</label>
+                        <input type="number" id="dist_${persona}" value="${(percentage * 100).toFixed(1)}" 
+                               step="0.1" min="0" max="100">
+                    </div>`;
+            }
+
+            // Populate persona details
+            const detailsDiv = document.getElementById('persona-details');
+            detailsDiv.innerHTML = '';
+            for (const [persona, details] of Object.entries(config.personas)) {
+                const displayName = persona.charAt(0).toUpperCase() + persona.slice(1);
+                detailsDiv.innerHTML += `
+                    <div class="config-item">
+                        <h4>${displayName}</h4>
+                        <label>Price ($)</label>
+                        <input type="number" id="price_${persona}" value="${details.price}" step="1">
+                        <label>Guests per Month</label>
+                        <input type="number" id="guests_${persona}" value="${details.guests_per_month}" step="0.5">
+                        <label>Reserved Visits</label>
+                        <input type="number" id="reserved_${persona}" value="${details.reserved_visits}" step="1">
+                        <label>Mixed Visits</label>
+                        <input type="number" id="mixed_${persona}" value="${details.mixed_visits}" step="0.5">
+                        <label>Game Checkouts</label>
+                        <input type="number" id="game_checkouts_${persona}" value="${details.game_checkouts}" step="1">
+                        <label>Average Group Size</label>
+                        <input type="number" id="avg_group_size_${persona}" value="${details.avg_group_size}" step="1">
+                    </div>`;
+            }
+
+            // Populate spending assumptions
+            const spendingDiv = document.getElementById('spending-assumptions');
+            spendingDiv.innerHTML = '';
+            for (const [persona, retail] of Object.entries(config.spending_assumptions.retail_monthly)) {
+                const displayName = persona.charAt(0).toUpperCase() + persona.slice(1);
+                const snacks = config.spending_assumptions.snacks[persona];
+                spendingDiv.innerHTML += `
+                    <div class="config-item">
+                        <h4>${displayName}</h4>
+                        <label>Monthly Retail ($)</label>
+                        <input type="number" id="retail_${persona}" value="${retail}" step="0.01">
+                        <label>Snacks per Visit ($)</label>
+                        <input type="number" id="snacks_${persona}" value="${snacks}" step="0.01">
+                    </div>`;
+            }
+
+            // Populate plans
+            const plansDiv = document.getElementById('plans');
+            plansDiv.innerHTML = '';
+            const planPrices = config.plan_prices;
+            for (const [plan, price] of Object.entries(planPrices)) {
+                const displayName = plan.replace('_plan_price', '').split('_').map(word => 
+                    word.charAt(0).toUpperCase() + word.slice(1)
+                ).join(' ');
+                plansDiv.innerHTML += `
+                    <div class="plan-card">
+                        <h4>${displayName} Plan</h4>
+                        <label>Price ($)</label>
+                        <input type="number" id="${plan}" value="${price}" step="1">
+                    </div>`;
             }
         }
 
@@ -487,6 +589,10 @@
                                 <input type="number" id="reserved_${persona}" value="${details.reserved_visits}" step="1">
                                 <label>Mixed Visits</label>
                                 <input type="number" id="mixed_${persona}" value="${details.mixed_visits}" step="0.5">
+                                <label>Game Checkouts</label>
+                                <input type="number" id="game_checkouts_${persona}" value="${details.game_checkouts}" step="1">
+                                <label>Average Group Size</label>
+                                <input type="number" id="avg_group_size_${persona}" value="${details.avg_group_size}" step="1">
                             </div>`;
                     }
 
@@ -535,45 +641,56 @@
 
         function saveConfig() {
             const config = {
-                distribution: {},
-                personas: {},
-                spending_assumptions: {
-                    retail_monthly: {},
-                    snacks: {}
-                },
-                plan_prices: {}
+                personas: {}
             };
 
-            // Collect persona distribution
-            document.querySelectorAll('[id^="dist_"]').forEach(input => {
-                const persona = input.id.replace('dist_', '');
-                config.distribution[persona] = parseFloat(input.value) / 100;
-            });
-
-            // Collect persona details
-            document.querySelectorAll('.config-item h4').forEach(header => {
+            // Find all persona sections by looking for h4 headers
+            const headers = document.querySelectorAll('h4');
+            headers.forEach(header => {
                 const persona = header.textContent.toLowerCase();
-                const div = header.parentElement;
-                config.personas[persona] = {
-                    price: parseFloat(div.querySelector(`#price_${persona}`).value),
-                    guests_per_month: parseFloat(div.querySelector(`#guests_${persona}`).value),
-                    reserved_visits: parseInt(div.querySelector(`#reserved_${persona}`).value),
-                    mixed_visits: parseFloat(div.querySelector(`#mixed_${persona}`).value)
+                if (!['casual', 'students', 'families', 'hobbyists', 'everyday'].includes(persona)) return;
+
+                // Get all input values for this persona
+                const values = {};
+                const inputIds = {
+                    'price': `price_${persona}`,
+                    'guests_per_month': `guests_${persona}`,
+                    'reserved_visits': `reserved_${persona}`,
+                    'mixed_visits': `mixed_${persona}`,
+                    'game_checkouts': `game_checkouts_${persona}`,
+                    'avg_group_size': `avg_group_size_${persona}`
                 };
 
-                // Collect spending assumptions
-                config.spending_assumptions.retail_monthly[persona] = parseFloat(document.querySelector(`#retail_${persona}`).value);
-                config.spending_assumptions.snacks[persona] = parseFloat(document.querySelector(`#snacks_${persona}`).value);
+                // Collect values from inputs
+                Object.entries(inputIds).forEach(([key, id]) => {
+                    const input = document.getElementById(id);
+                    if (input) {
+                        const value = parseFloat(input.value);
+                        if (!isNaN(value)) {
+                            values[key] = value;
+                        }
+                    }
+                });
+
+                // Only process this persona if we found valid values
+                if (Object.keys(values).length === 0) return;
+
+                // Map the values to the correct structure
+                if (Object.keys(values).length > 0) {
+                    config.personas[persona] = {
+                        price: values.price || 0,
+                        guests_per_month: values.guests_per_month || 0,
+                        reserved_visits: values.reserved_visits || 0,
+                        mixed_visits: values.mixed_visits || 0,
+                        game_checkouts: values.game_checkouts || 0,
+                        avg_group_size: values.avg_group_size || 0
+                    };
+                }
             });
 
-            // Collect plan prices
-            config.plan_prices = {
-                basic_plan_price: parseFloat(document.querySelector('#basic_plan_price').value),
-                standard_plan_price: parseFloat(document.querySelector('#standard_plan_price').value),
-                family_plan_price: parseFloat(document.querySelector('#family_plan_price').value)
-            };
+            console.log('Saving config:', config);
 
-            console.log('Saving config with data:', config);
+            // Send the config update request
             authenticatedFetch('/api/config', {
                 method: 'POST',
                 headers: {
@@ -581,32 +698,42 @@
                 },
                 body: JSON.stringify(config)
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Response status:', response.status);
+                return response.json();
+            })
             .then(data => {
                 console.log('Save response:', data);
+                const statusDiv = document.getElementById('config-status');
+                
                 if (data.message === 'Config updated successfully') {
-                    const statusDiv = document.getElementById('config-status');
+                    console.log('Save successful');
                     statusDiv.textContent = 'Saved Successfully';
                     statusDiv.style.color = 'green';
                     statusDiv.style.display = 'block';
+                    
                     // Hide success message after 3 seconds
                     setTimeout(() => {
                         statusDiv.style.display = 'none';
                     }, 3000);
-                    // Refresh all tabs to show updated values
-                    loadData('planner');
-                    loadData('optimizer');
-                    loadData('personas');
+                    
+                    // Reload the page to show updated values
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
                 } else if (data.error) {
-                    const statusDiv = document.getElementById('config-status');
+                    console.error('Error from server:', data.error);
                     statusDiv.textContent = 'Error: ' + data.error;
                     statusDiv.style.color = 'red';
                     statusDiv.style.display = 'block';
                 }
             })
             .catch((error) => {
-                console.error('Error:', error);
-                alert('Error saving configuration');
+                console.error('Network error:', error);
+                const statusDiv = document.getElementById('config-status');
+                statusDiv.textContent = 'Error saving configuration: ' + error.message;
+                statusDiv.style.color = 'red';
+                statusDiv.style.display = 'block';
             });
         }
 

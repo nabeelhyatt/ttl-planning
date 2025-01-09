@@ -49,55 +49,54 @@ GUEST_SPENDING_MULTIPLIER = 1  # Guests tend to spend a bit more
 
 # Distribution percentages
 PERSONA_DISTRIBUTION = {
-    'casual': 0.25,    # 45% casual gamers
-    'students': 0.05,  # 15% students
-    'families': 0.40,  # 15% families
-    'hobbyists': 0.25, # 15% hobbyists
-    'everyday': 0.05   # 10% everyday players
+    'casual': 0.25,
+    'students': 0.05,
+    'families': 0.4,
+    'hobbyists': 0.25,
+    'everyday': 0.05
 }
 
 # Persona prices, guests, and visit mixes
 PERSONAS = {
     'casual': {
-        'price': 8,   # price willing to pay per visit
-        'guests_per_month': 3,   # Assumes 2 guests on average for a 4-top
-        'reserved_visits': 1,       # visits/month
-        'mixed_visits': .5,        # mixed visits/month
-        'game_checkouts': 0,          # 1 game checkout per month
-        'avg_group_size': 4
-    },
-    'students': {
-        'price': 5,   # price willing to pay per visit
-        'guests_per_month': 3,   # Assumes 3 guests for a 4-top
-        'reserved_visits': 8,       # visits/month
-        'mixed_visits': 1,          # mixed visits/month
-        'game_checkouts': 1,          # 1 game checkout per month
-        'avg_group_size': 3
-    },
-    'families': {
-        'price': 15,   # price willing to pay per visit
-        'guests_per_month': 2.5, # Average between solo parent (2 kids) and family visit (3 family)
-        'reserved_visits': 3,       # visits/month
-        'mixed_visits': 2,          # mixed visits/month
-        'game_checkouts': 1,          # 1 game checkout per month
-        'avg_group_size': 4
-    },
-    'hobbyists': {
-        'price': 10,   # price willing to pay per visit
-        'guests_per_month': 3,   # Assumes 3 guests for a 4-top
-        'reserved_visits': 4,       # visits/month
-        'mixed_visits': 2,          # mixed visits/month
-        'game_checkouts': 2,          # 2 game checkouts per month
-        'avg_group_size': 4
+        'price': 20,
+        'guests_per_month': 6,
+        'reserved_visits': 3,
+        'mixed_visits': 1,
+        'game_checkouts': 0,
+        'avg_group_size': 4,
     },
     'everyday': {
-        'price': 5,   # price willing to pay per visit
-        'guests_per_month': 3,   # Assumes 3 guests for a 4-top
-        'reserved_visits': 8,       # visits/month
-        'mixed_visits': 4,          # mixed event visits/month
-        'game_checkouts': 2,          # 10 game checkouts per month
-        'avg_group_size': 4
-    }
+        'price': 5,
+        'guests_per_month': 3,
+        'reserved_visits': 8,
+        'mixed_visits': 4,
+        'game_checkouts': 2,
+        'avg_group_size': 4,
+    },
+    'families': {
+        'price': 15,
+        'guests_per_month': 2.5,
+        'reserved_visits': 3,
+        'mixed_visits': 2,
+        'game_checkouts': 1,
+        'avg_group_size': 4,
+    },
+    'hobbyists': {
+        'price': 10,
+        'guests_per_month': 3,
+        'reserved_visits': 4,
+        'mixed_visits': 2,
+        'game_checkouts': 2,
+        'avg_group_size': 4,
+    },
+    'students': {
+        'price': 5,
+        'guests_per_month': 3,
+        'reserved_visits': 8,
+        'mixed_visits': 1,
+        'game_checkouts': 1,
+        'avg_group_size': 3,
 }
 
 # Per-visit spending assumptions
@@ -314,320 +313,155 @@ def can_accommodate(M):
              reserved_6_split_4_2 +
              reserved_8_split) >= demands['reserved_4_blocks'], "4_person_demand"
     
-    # 2-person groups (can use 2-tops or split larger tables)
-    model += (reserved_2 + 
-             reserved_4_split * 2 +  # Each split 4-top gives two 2-person slots
-             reserved_6_split_3x2 * 2 +  # Each split 6-top gives two 2-person slots
+    # 2-person groups (can use 2-tops or split tables)
+    model += (reserved_2 +
+             2 * reserved_4_split +
+             2 * reserved_6_split_3x2 +
+             reserved_6_split_4_2 +
              reserved_8_split) >= demands['reserved_2_blocks'], "2_person_demand"
     
-    # Meet mixed seating demand
+    # Mixed seating demand (can use any table configuration)
     model += (
-        # 4-tops contribution
-        mixed_4_full * 4 + mixed_4_split * 2 +
-        # 8-tops contribution
-        mixed_8_full * 8 + mixed_8_split * 6 +
-        # 6-tops contribution
-        mixed_6_full * 6 + mixed_6_split_3x2 * 5 + mixed_6_split_4_2 * 6 +
-        # 2-tops contribution
-        mixed_2 * 2
+        # Full tables
+        4 * mixed_4_full +
+        8 * mixed_8_full +
+        6 * mixed_6_full +
+        2 * mixed_2 +
+        # Split tables
+        2 * mixed_4_split +  # 2x2
+        (3 + 3) * mixed_6_split_3x2 +  # 3x2
+        (4 + 2) * mixed_6_split_4_2 +  # 4+2
+        (4 + 2) * mixed_8_split  # 4+2
     ) >= demands['mixed_seat_blocks'], "mixed_seating_demand"
     
-    # Solve the model
+    # Solve the optimization problem
     model.solve()
-
-    # Check if solution exists and is optimal
+    
+    # Check if a solution was found
     if pulp.LpStatus[model.status] == 'Optimal':
-        results = {
-            'tables': {
-                # 4-tops
-                'reserved_4_full': reserved_4_full.value(),
-                'reserved_4_split': reserved_4_split.value(),
-                'mixed_4_full': mixed_4_full.value(),
-                'mixed_4_split': mixed_4_split.value(),
-                # 8-tops
-                'reserved_8_full': reserved_8_full.value(),
-                'reserved_8_split': reserved_8_split.value(),
-                'mixed_8_full': mixed_8_full.value(),
-                'mixed_8_split': mixed_8_split.value(),
-                # 6-tops
-                'reserved_6_full': reserved_6_full.value(),
-                'reserved_6_split_3x2': reserved_6_split_3x2.value(),
-                'reserved_6_split_4_2': reserved_6_split_4_2.value(),
-                'mixed_6_full': mixed_6_full.value(),
-                'mixed_6_split_3x2': mixed_6_split_3x2.value(),
-                'mixed_6_split_4_2': mixed_6_split_4_2.value(),
-                # 2-tops
-                'reserved_2': reserved_2.value(),
-                'mixed_2': mixed_2.value()
-            },
-            'demands': demands
-        }
-        
-        # Calculate utilization rates
-        results['utilization'] = {
-            '4_top': (results['tables']['reserved_4_full'] + 
-                     results['tables']['reserved_4_split'] + 
-                     results['tables']['mixed_4_full'] + 
-                     results['tables']['mixed_4_split']) / MONTHLY_4_TOP_BLOCKS * 100,
-            
-            '8_top': (results['tables']['mixed_8_full'] / MONTHLY_8_TOP_BLOCKS) * 100,
-            
-            '6_top': (results['tables']['reserved_6_full'] +
-                     results['tables']['reserved_6_split_3x2'] +
-                     results['tables']['reserved_6_split_4_2'] +
-                     results['tables']['mixed_6_full'] +
-                     results['tables']['mixed_6_split_3x2'] +
-                     results['tables']['mixed_6_split_4_2']) / MONTHLY_6_TOP_BLOCKS * 100,
-            
-            '2_top': (results['tables']['reserved_2'] +
-                     results['tables']['mixed_2']) / MONTHLY_2_TOP_BLOCKS * 100
-        }
-        
-        return True, results
+        return True, None
     else:
         return False, None
 
 def analyze_bottleneck(M):
-    """Analyze what's causing the bottleneck at M members"""
+    """Analyze what's causing capacity issues at M members"""
     demands = compute_demands(M)
     
-    # Calculate total demand across all personas
-    total_4_top_demand = sum(
-        type_demands['reserved_4_blocks'] + 
-        type_demands['reserved_2_blocks']/2 + 
-        type_demands['mixed_seat_blocks']/4
-        for type_demands in demands['type_demands'].values()
-    )
-    total_utilization = (total_4_top_demand / MONTHLY_4_TOP_BLOCKS) * 100
+    # Calculate utilization percentages
+    utilization = {
+        '8_top': demands['reserved_8_blocks'] / MONTHLY_8_TOP_BLOCKS * 100,
+        '6_top': demands['reserved_6_blocks'] / MONTHLY_6_TOP_BLOCKS * 100,
+        '4_top': demands['reserved_4_blocks'] / MONTHLY_4_TOP_BLOCKS * 100,
+        '2_top': demands['reserved_2_blocks'] / MONTHLY_2_TOP_BLOCKS * 100
+    }
     
-    # Find which persona has highest individual demand
-    bottleneck = {'table_type': '4-top', 'persona': None, 'utilization': 0, 'total_utilization': total_utilization}
+    # Find the highest utilization
+    max_util = max(utilization.values())
+    bottlenecks = [size for size, util in utilization.items() if util > 80]
     
-    for persona, type_demands in demands['type_demands'].items():
-        persona_4_top_demand = (type_demands['reserved_4_blocks'] + 
-                            type_demands['reserved_2_blocks']/2 + 
-                            type_demands['mixed_seat_blocks']/4)
-        utilization = (persona_4_top_demand / MONTHLY_4_TOP_BLOCKS) * 100
-        if utilization > bottleneck['utilization']:
-            bottleneck['utilization'] = utilization
-            bottleneck['persona'] = persona
-    
-    return bottleneck
+    if bottlenecks:
+        return f"High utilization ({max_util:.1f}%) of {', '.join(bottlenecks)} tables"
+    else:
+        return "No clear bottleneck identified"
 
-def generate_summary(test_members, results_list):
-    """Generate a high-level summary of capacity analysis"""
+def generate_summary(test_members, results):
+    """Generate a summary of capacity analysis results"""
     summary = []
-    
-    # Find maximum feasible member count
-    max_feasible = 0
-    first_fail = None
-    bottleneck = None
-    
-    for M, success in results_list:
-        if success:
-            max_feasible = M
-        elif first_fail is None:
-            first_fail = M
-            bottleneck = analyze_bottleneck(M)
-    
-    # Add summary header
-    summary.append("🎲 Capacity Analysis Overview")
+    summary.append("Capacity Analysis Overview")
+    summary.append("=" * 30)
     summary.append("")
     
-    if max_feasible > 0:
-        summary.append(f"✅ Maximum feasible member count: {max_feasible}")
-        total_guests = calculate_total_guests(max_feasible)
-        summary.append(f"👥 Monthly guests at capacity: {int(total_guests)}")
-    else:
-        summary.append("❌ No viable member count found")
+    # Find maximum viable membership
+    max_viable = None
+    for M, can_fit in results:
+        if can_fit:
+            max_viable = M
     
-    summary.append("")  # Add spacing
-    summary.append(f"📊 Bottleneck at {first_fail} members:")
-    summary.append(f"• Total Table Utilization: {bottleneck['total_utilization']:.1f}%")
-    summary.append("")  # Add spacing
-    summary.append("Highest Individual Impact:")
-    summary.append(f"• Persona Type: {bottleneck['persona'].title()}")
-    summary.append(f"• Their Utilization: {bottleneck['utilization']:.1f}%")
-    summary.append(f"• Table Type: {bottleneck['table_type']}")
+    if max_viable:
+        summary.append(f"Maximum Viable Membership: {max_viable}")
+        bottleneck = analyze_bottleneck(max_viable + 50)
+        summary.append(f"Limiting Factor: {bottleneck}")
+    else:
+        summary.append("Error: Could not determine maximum viable membership")
+    
+    summary.append("")
+    summary.append("Detailed Results:")
+    for M, can_fit in results:
+        status = "✓" if can_fit else "✗"
+        summary.append(f"{status} {M:4d} members")
     
     return "\n".join(summary)
 
-def analyze_capacity(test_members=[200, 250, 300, 350, 400]):
-    """Analyze capacity for different member counts"""
+def analyze_capacity():
+    """Analyze capacity and determine optimal member count"""
+    test_members = [200, 250, 300, 350, 400]
     results = []
+    
+    print("Running Capacity Analysis")
+    print("=" * 30)
+    
     for M in test_members:
-        demands = compute_demands(M)
-        if can_accommodate(M)[0]:
-            results.append((M, True))
-        else:
-            results.append((M, False))
-    
-    # Generate and print the summary first
-    summary = generate_summary(test_members, results)
-    print(summary)
-    
-    print("\nDetailed Analysis")
-    print("=" * 50)
-    
-    # Do detailed analysis for each member count
-    for M in test_members:
-        print(f"\nAnalyzing capacity for {M} members:")
-        print("-" * 50)
+        print(f"\nTesting {M} members...")
+        can_fit, _ = can_accommodate(M)
+        results.append((M, can_fit))
+        print(f"Can accommodate {M} members: {'Yes' if can_fit else 'No'}")
         
-        can_fit, results = can_accommodate(M)
-        
-        if can_fit and results is not None:
-            print(f"✓ Can accommodate {M} members!")
-            
-            if 'demands' in results:
-                demands = results['demands']
-            
-                print("\nTable Usage (per 3-hour block):")
-                print("-" * 40)
-                print("4-top tables:")
-                if 'tables' in results:
-                    print(f"Full reservations: {results['tables']['reserved_4_full']:.1f} tables")
-                    print(f"Split reservations: {results['tables']['reserved_4_split']:.1f} tables ({results['tables']['reserved_4_split']*2:.1f} 2-person slots)")
-                    print(f"Mixed seating (full): {results['tables']['mixed_4_full']:.1f} tables ({results['tables']['mixed_4_full']*4:.1f} seats)")
-                    print(f"Mixed seating (split): {results['tables']['mixed_4_split']:.1f} tables ({results['tables']['mixed_4_split']*2:.1f} seats)")
-                    print("\n8-top tables:")
-                    print(f"Mixed seating: {results['tables']['mixed_8_full']:.1f} tables ({results['tables']['mixed_8_full']*8:.1f} seats)")
-                
-                print("\nOperating Hours:")
-                print("-" * 20)
-                print("Weekdays: 5PM-11PM (2 blocks/day * 5 days = 10 blocks/week)")
-                print("Weekends: 9AM-11PM (~4.67 blocks/day * 2 days = 9 blocks/week)")
-                print(f"Total blocks per month: {TIME_BLOCKS_PER_MONTH}")
-            
-            print("\nBy Persona Type:")
-            print("-" * 20)
-            for persona_type, type_demands in demands['type_demands'].items():
-                print(f"\n{persona_type.title()}:")
-                print(f"  Full 4-top reservations needed: {type_demands['reserved_4_blocks']:.1f}")
-                print(f"  2-person reservations needed: {type_demands['reserved_2_blocks']:.1f}")
-                print(f"  Mixed seats needed: {type_demands['mixed_seat_blocks']:.1f}")
-            
-            print("\nUtilization Rates:")
-            print("-" * 20)
-            # Calculate utilization rates
-            four_top_util = ((results['tables']['reserved_4_full'] + results['tables']['reserved_4_split'] + 
-                           results['tables']['mixed_4_full'] + results['tables']['mixed_4_split'])/MONTHLY_4_TOP_BLOCKS) * 100
-            eight_top_util = (results['tables']['mixed_8_full']/MONTHLY_8_TOP_BLOCKS) * 100
-            print(f"4-top tables: {four_top_util:.1f}%")
-            print(f"8-top tables: {eight_top_util:.1f}%")
-            print(f"Overall: {(four_top_util * NUM_4_TOP + eight_top_util * NUM_8_TOP)/(NUM_4_TOP + NUM_8_TOP):.1f}%")
-        else:
-            print(f"✗ Cannot accommodate {M} members")
-            demands = compute_demands(M)
-            
-            print("\nDemands that couldn't be met:")
-            print("-" * 20)
-            print(f"Full 4-top blocks needed: {demands['reserved_4_blocks']}")
-            print(f"2-person blocks needed: {demands['reserved_2_blocks']}")
-            print(f"Mixed seat blocks needed: {demands['mixed_seat_blocks']}")
-            
-            print("\nBy Persona Type:")
-            print("-" * 20)
-            for persona_type, type_demands in demands['type_demands'].items():
-                print(f"\n{persona_type.title()}:")
-                print(f"  Full 4-top blocks needed: {type_demands['reserved_4_blocks']}")
-                print(f"  2-person blocks needed: {type_demands['reserved_2_blocks']}")
-                print(f"  Mixed seat blocks needed: {type_demands['mixed_seat_blocks']}")
+        if can_fit:
+            # Set the member count for value calculations
+            global MEMBER_COUNT
+            MEMBER_COUNT = M
     
-    return can_fit
+    print("\nCapacity Analysis Complete")
+    print("=" * 30)
+    print(generate_summary(test_members, results))
 
 def calculate_plan_value(plan_type):
-    """Calculate the value and features for a given plan type."""
-    if plan_type.lower() == "basic":
-        features = {
-            "guest_passes": 1,
-            "retail_discount": 0.1,  # 10%
-            "snack_discount": 0.1,   # 10%
-            "mixed_access": False,
-            "additional_members": 0,  # No additional members
-            "game_checkouts": 1
+    """Calculate the value and features of a membership plan"""
+    if plan_type == 'basic':
+        return {
+            'price': BASIC_PLAN_PRICE,
+            'features': {
+                'guest_passes': 2,
+                'mixed_access': False,
+                'game_checkouts': 0
+            }
         }
-        price = BASIC_PLAN_PRICE
-    elif plan_type.lower() == "standard":
-        features = {
-            "guest_passes": 2,
-            "retail_discount": 0.15,  # 15%
-            "snack_discount": 0.15,   # 15%
-            "mixed_access": True,
-            "additional_members": 1,  # One additional member
-            "game_checkouts": 2
+    elif plan_type == 'standard':
+        return {
+            'price': STANDARD_PLAN_PRICE,
+            'features': {
+                'guest_passes': 4,
+                'mixed_access': True,
+                'game_checkouts': 2
+            }
         }
-        price = STANDARD_PLAN_PRICE
-    elif plan_type.lower() == "family":
-        features = {
-            "guest_passes": 4,
-            "retail_discount": 0.2,   # 20%
-            "snack_discount": 0.2,    # 20%
-            "mixed_access": True,
-            "additional_members": 3,  # Three additional family members
-            "game_checkouts": 4
+    elif plan_type == 'family':
+        return {
+            'price': FAMILY_PLAN_PRICE,
+            'features': {
+                'guest_passes': 8,
+                'mixed_access': True,
+                'game_checkouts': 4
+            }
         }
-        price = FAMILY_PLAN_PRICE
     else:
-        raise ValueError(f"Invalid plan type: {plan_type}")
-    
-    # Calculate base value
-    value = BASE_VISIT_VALUE
-    
-    # Add value for features
-    value += features["guest_passes"] * GUEST_PRICE
-    if features["mixed_access"]:
-        value += MIXED_VALUE
-    value += features["game_checkouts"] * GAME_CHECKOUT_VALUE
-    
-    # Cap the base value
-    value = min(value, BASE_VALUE_CAP)
-    
-    return {
-        "plan_type": plan_type,
-        "price": float(price),
-        "monthly_value": float(value),
-        "value_ratio": float(value / price),
-        "features": features
-    }
+        raise ValueError(f"Unknown plan type: {plan_type}")
 
 def get_plan_features(plan_type):
-    """Get list of features for a given plan type."""
+    """Get list of features for a plan type"""
+    plan = calculate_plan_value(plan_type)
     features = []
     
-    if plan_type.lower() == "basic":
-        features = [
-            '1 Guest Pass',
-            '10% Retail Discount',
-            '1 Game Checkout'
-        ]
-    elif plan_type.lower() == "standard":
-        features = [
-            '2 Guest Passes',
-            '15% Retail Discount',
-            'Mixed Event Access',
-            '1 Additional Member',
-            '2 Game Checkouts'
-        ]
-    elif plan_type.lower() == "family":
-        features = [
-            '4 Guest Passes',
-            '20% Retail Discount',
-            'Mixed Event Access',
-            '3 Additional Members',
-            '4 Game Checkouts'
-        ]
+    if plan['features']['guest_passes'] > 0:
+        features.append(f"{plan['features']['guest_passes']} guest passes per month")
+    if plan['features']['mixed_access']:
+        features.append("Access to mixed events")
+    if plan['features']['game_checkouts'] > 0:
+        features.append(f"{plan['features']['game_checkouts']} game checkouts per month")
     
     return features
 
-def calculate_total_guests(M):
-    """Calculate total monthly guests for M members"""
-    total_guests = 0
-    for persona_type, distribution in PERSONA_DISTRIBUTION.items():
-        member_count = M * distribution
-        monthly_guests = member_count * PERSONAS[persona_type]['guests_per_month']
-        total_guests += monthly_guests
-    return total_guests
-
-if __name__ == "__main__":
-    analyze_capacity()
+def calculate_total_guests(persona_type):
+    """Calculate total monthly guests for a persona type"""
+    persona = PERSONAS[persona_type]
+    return persona['guests_per_month'] * persona['reserved_visits']

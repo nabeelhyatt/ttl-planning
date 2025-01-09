@@ -231,7 +231,7 @@ def update_planner_file(updates):
                 while end_idx < len(lines) and '}' not in lines[end_idx]:
                     end_idx += 1
                 
-                # Create new persona lines
+                # Create new persona lines with proper indentation
                 new_lines = ['PERSONAS = {\n']
                 for persona, data in updates['personas'].items():
                     new_lines.append(f"    '{persona}': {{\n")
@@ -239,6 +239,10 @@ def update_planner_file(updates):
                         new_lines.append(f"        '{key}': {value},\n")
                     new_lines.append('    },\n')
                 new_lines.append('}\n')
+                
+                # Ensure proper line endings and indentation
+                content = ''.join(new_lines)
+                new_lines = content.splitlines(keepends=True)
                 
                 # Replace old lines with new ones
                 lines[i:end_idx+1] = new_lines
@@ -277,22 +281,37 @@ def update_config():
                 return jsonify({"error": "Persona values must be numbers"}), 400
     
     # Debug logging before update
+    print("\n=== Config Update Debug Info ===")
     print("Current distribution before update:", planner.PERSONA_DISTRIBUTION)
-    print("Config update requested with:", updates)
+    print("Current personas before update:", planner.PERSONAS)
+    print("\nConfig update requested with:", updates)
     
-    # Update the planner file
-    update_planner_file(updates)
-    
-    # Debug logging after file update
-    with open(os.path.join(os.path.dirname(__file__), 'planner.py'), 'r') as f:
-        print("Current PERSONA_DISTRIBUTION in file:", [line.strip() for line in f if 'PERSONA_DISTRIBUTION' in line])
-    
-    # Reload the planner module to pick up new changes
-    importlib.reload(planner)
-    print("planner.py reloaded, new distribution:", planner.PERSONA_DISTRIBUTION)
-    
-    print("Config update successful, distribution is now:", planner.PERSONA_DISTRIBUTION)
-    return jsonify({"message": "Config updated successfully"})
+    try:
+        # Update the planner file
+        update_planner_file(updates)
+        
+        # Debug logging after file update
+        print("\n=== File Update Verification ===")
+        with open(os.path.join(os.path.dirname(__file__), 'planner.py'), 'r') as f:
+            content = f.read()
+            print("Updated file content:")
+            print(content)
+        
+        # Reload the planner module to pick up new changes
+        importlib.reload(planner)
+        print("\n=== Final State ===")
+        print("Updated personas after reload:", planner.PERSONAS)
+        
+        print("Config update successful, distribution is now:", planner.PERSONA_DISTRIBUTION)
+        return jsonify({
+            "message": "Config updated successfully",
+            "personas": planner.PERSONAS
+        })
+    except Exception as e:
+        print(f"\n=== Error during config update ===\n{str(e)}")
+        return jsonify({
+            "error": f"Failed to update configuration: {str(e)}"
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=3000)
