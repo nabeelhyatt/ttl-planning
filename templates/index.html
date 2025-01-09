@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Tabletop Library Planning Tool</title>
+    <title>Tabletop Library Planning Tools</title>
     <style>
         body {
             font-family: system-ui, -apple-system, sans-serif;
@@ -186,10 +186,9 @@
         }
 
         .summary-box {
-            background: #f0f7ff;
-            border: 2px solid #3478F6;
-            border-radius: 10px;
+            background: #f5f5f7;
             padding: 20px;
+            border-radius: 10px;
             margin-bottom: 20px;
             font-size: 16px;
             line-height: 1.5;
@@ -231,10 +230,16 @@
     </div>
 
     <div class="content" id="optimizer-content">
+        <div class="summary-box">
+            <div id="optimizer-summary"></div>
+        </div>
         <pre id="optimizer-output">Loading...</pre>
     </div>
 
     <div class="content" id="personas-content">
+        <div class="summary-box">
+            <div id="personas-summary"></div>
+        </div>
         <pre id="personas-output">Loading...</pre>
     </div>
 
@@ -351,6 +356,9 @@
                     if (tabName === 'planner') {
                         document.getElementById('planner-summary').innerHTML = data.summary;
                         document.getElementById('planner-output').textContent = data.detailed_output;
+                    } else if (tabName === 'optimizer' || tabName === 'personas') {
+                        document.getElementById(`${tabName}-summary`).innerHTML = data.summary.replace(/\n/g, '<br>');
+                        document.getElementById(`${tabName}-output`).innerHTML = `<pre>${data.output}</pre>`;
                     } else {
                         document.getElementById(`${tabName}-output`).innerHTML = `<pre>${data.output}</pre>`;
                     }
@@ -359,6 +367,9 @@
                     console.error('Error:', error);
                     if (tabName === 'planner') {
                         document.getElementById('planner-output').innerHTML = 'Error loading data';
+                    } else if (tabName === 'optimizer' || tabName === 'personas') {
+                        document.getElementById(`${tabName}-summary`).innerHTML = 'Error loading summary';
+                        document.getElementById(`${tabName}-output`).innerHTML = 'Error loading data';
                     } else {
                         document.getElementById(`${tabName}-output`).innerHTML = 'Error loading data';
                     }

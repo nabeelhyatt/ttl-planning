@@ -3,6 +3,7 @@ from flask_cors import CORS
 import planner
 import plan_optimizer
 import persona_optimization
+import revenue_planner
 import os
 import io
 import sys
@@ -63,8 +64,9 @@ def get_planner_data():
         else:
             results.append((M, False))
     
-    # Get summary
+    # Get summary and convert newlines to HTML breaks
     summary = planner.generate_summary(test_members, results)
+    summary = summary.replace('\n', '<br>')
     
     # Get detailed analysis
     detailed_output = capture_output(planner.analyze_capacity)
@@ -78,15 +80,79 @@ def get_planner_data():
 def get_optimizer_data():
     # Create an optimizer instance and run optimization
     optimizer = plan_optimizer.PlanOptimizer()
+    optimized_plans = optimizer.optimize_pricing()
+    
+    # Generate summary
+    summary = []
+    summary.append(" Plan Optimization Overview")
+    summary.append("")
+    
+    # Find best value plans for each persona
+    best_plans = {}
+    for plan in optimized_plans:
+        for persona, ratio in plan['value_ratios'].items():
+            if persona not in best_plans or ratio > best_plans[persona][1]:
+                best_plans[persona] = (plan['plan_type'], ratio)
+    
+    # Add key insights
+    total_features = sum(len(plan['features']) for plan in optimized_plans)
+    avg_features = total_features / len(optimized_plans)
+    summary.append(f"• Average Features per Plan: {avg_features:.1f}")
+    summary.append(f"• Total Unique Features: {total_features}")
+    summary.append("")
+    summary.append("Best Plan by Persona:")
+    for persona, (plan, ratio) in best_plans.items():
+        summary.append(f"• {persona.title()}: {plan.title()} Plan ({ratio:.1f}x value)")
+    
+    # Get detailed analysis
     output = capture_output(optimizer.print_optimization_results)
-    return jsonify({"output": output})
+    
+    return jsonify({
+        "summary": "\n".join(summary),
+        "output": output
+    })
 
 @app.route('/api/personas')
-def get_persona_data():
+def get_personas_data():
     # Create a persona optimizer instance and run optimization
     optimizer = persona_optimization.PersonaOptimizer()
+    optimized_personas = optimizer.optimize_personas()
+    
+    # Generate summary
+    summary = []
+    summary.append(" Persona Value Analysis")
+    summary.append("")
+    
+    # Calculate average value ratios and find best plans
+    total_value = 0
+    count = 0
+    best_value_persona = None
+    best_value_ratio = 0
+    
+    for persona in optimized_personas:
+        avg_ratio = sum(persona['value_ratios'].values()) / len(persona['value_ratios'])
+        total_value += avg_ratio
+        count += 1
+        if avg_ratio > best_value_ratio:
+            best_value_ratio = avg_ratio
+            best_value_persona = persona['persona_type']
+    
+    avg_value = total_value / count
+    summary.append(f"• Average Value Ratio: {avg_value:.1f}x")
+    summary.append(f"• Best Value Persona: {best_value_persona.title()} ({best_value_ratio:.1f}x)")
+    summary.append("")
+    summary.append("Plan Matches:")
+    for persona in optimized_personas:
+        if persona['best_plans']:
+            summary.append(f"• {persona['persona_type'].title()}: {', '.join(p.title() for p in persona['best_plans'])}")
+    
+    # Get detailed analysis
     output = capture_output(optimizer.print_optimization_results)
-    return jsonify({"output": output})
+    
+    return jsonify({
+        "summary": "\n".join(summary),
+        "output": output
+    })
 
 @app.route('/api/config')
 @requires_auth
@@ -124,6 +190,13 @@ def get_config():
         }
     }
     return jsonify(config)
+
+@app.route('/api/revenue')
+def get_revenue_data():
+    """Get revenue projections"""
+    rp = revenue_planner.RevenuePlanner()
+    revenue_data = rp.calculate_monthly_revenue()
+    return jsonify(revenue_data)
 
 def update_planner_file(updates):
     """Update the planner.py file with new values"""

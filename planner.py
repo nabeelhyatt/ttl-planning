@@ -50,10 +50,10 @@ GUEST_SPENDING_MULTIPLIER = 1  # Guests tend to spend a bit more
 # Distribution percentages
 PERSONA_DISTRIBUTION = {
     'casual': 0.25,    # 45% casual gamers
-    'students': 0.25,  # 15% students
-    'families': 0.25,  # 15% families
-    'hobbyists': 0.15, # 15% hobbyists
-    'everyday': 0.10   # 10% everyday players
+    'students': 0.05,  # 15% students
+    'families': 0.40,  # 15% families
+    'hobbyists': 0.25, # 15% hobbyists
+    'everyday': 0.05   # 10% everyday players
 }
 
 # Persona prices, guests, and visit mixes
@@ -387,65 +387,68 @@ def can_accommodate(M):
     else:
         return False, None
 
+def analyze_bottleneck(M):
+    """Analyze what's causing the bottleneck at M members"""
+    demands = compute_demands(M)
+    
+    # Calculate total demand across all personas
+    total_4_top_demand = sum(
+        type_demands['reserved_4_blocks'] + 
+        type_demands['reserved_2_blocks']/2 + 
+        type_demands['mixed_seat_blocks']/4
+        for type_demands in demands['type_demands'].values()
+    )
+    total_utilization = (total_4_top_demand / MONTHLY_4_TOP_BLOCKS) * 100
+    
+    # Find which persona has highest individual demand
+    bottleneck = {'table_type': '4-top', 'persona': None, 'utilization': 0, 'total_utilization': total_utilization}
+    
+    for persona, type_demands in demands['type_demands'].items():
+        persona_4_top_demand = (type_demands['reserved_4_blocks'] + 
+                            type_demands['reserved_2_blocks']/2 + 
+                            type_demands['mixed_seat_blocks']/4)
+        utilization = (persona_4_top_demand / MONTHLY_4_TOP_BLOCKS) * 100
+        if utilization > bottleneck['utilization']:
+            bottleneck['utilization'] = utilization
+            bottleneck['persona'] = persona
+    
+    return bottleneck
+
 def generate_summary(test_members, results_list):
     """Generate a high-level summary of capacity analysis"""
-    max_feasible = 0
-    bottleneck_info = {}
-    
-    for M in test_members:
-        can_fit, results = can_accommodate(M)
-        if can_fit:
-            max_feasible = M
-        else:
-            demands = compute_demands(M)
-            # Find which table type and persona is causing the bottleneck
-            bottleneck = {'table_type': None, 'persona': None, 'utilization': 0, 'total_utilization': 0}
-            
-            # Calculate total demand across all personas
-            total_4_top_demand = sum(
-                type_demands['reserved_4_blocks'] + 
-                type_demands['reserved_2_blocks']/2 + 
-                type_demands['mixed_seat_blocks']/4
-                for type_demands in demands['type_demands'].values()
-            )
-            total_utilization = (total_4_top_demand / MONTHLY_4_TOP_BLOCKS) * 100
-            
-            # Find which persona has highest individual demand
-            for persona, type_demands in demands['type_demands'].items():
-                persona_4_top_demand = (type_demands['reserved_4_blocks'] + 
-                                    type_demands['reserved_2_blocks']/2 + 
-                                    type_demands['mixed_seat_blocks']/4)
-                utilization = (persona_4_top_demand / MONTHLY_4_TOP_BLOCKS) * 100
-                if utilization > bottleneck['utilization']:
-                    bottleneck['utilization'] = utilization
-                    bottleneck['table_type'] = '4-top'
-                    bottleneck['persona'] = persona
-            
-            bottleneck['total_utilization'] = total_utilization
-            bottleneck_info[M] = bottleneck
-            break  # We only need the first failing case
-    
     summary = []
+    
+    # Find maximum feasible member count
+    max_feasible = 0
+    first_fail = None
+    bottleneck = None
+    
+    for M, success in results_list:
+        if success:
+            max_feasible = M
+        elif first_fail is None:
+            first_fail = M
+            bottleneck = analyze_bottleneck(M)
+    
+    # Add summary header
     summary.append("🎲 Capacity Analysis Overview")
-    summary.append("=" * 35)
-    summary.append("")  # Add spacing
+    summary.append("")
     
     if max_feasible > 0:
-        summary.append(f"✅ Maximum Feasible Members: {max_feasible}")
+        summary.append(f"✅ Maximum feasible member count: {max_feasible}")
+        total_guests = calculate_total_guests(max_feasible)
+        summary.append(f"👥 Monthly guests at capacity: {int(total_guests)}")
     else:
-        summary.append("❌ Cannot accommodate even the minimum tested member count")
+        summary.append("❌ No viable member count found")
     
-    first_fail = min([m for m in test_members if m > max_feasible], default=None)
-    if first_fail and first_fail in bottleneck_info:
-        bottleneck = bottleneck_info[first_fail]
-        summary.append("")  # Add spacing
-        summary.append(f"📊 Bottleneck at {first_fail} members:")
-        summary.append(f"• Total Table Utilization: {bottleneck['total_utilization']:.1f}%")
-        summary.append("")  # Add spacing
-        summary.append("Highest Individual Impact:")
-        summary.append(f"• Persona Type: {bottleneck['persona'].title()}")
-        summary.append(f"• Their Utilization: {bottleneck['utilization']:.1f}%")
-        summary.append(f"• Table Type: {bottleneck['table_type']}")
+    summary.append("")  # Add spacing
+    summary.append(f"📊 Bottleneck at {first_fail} members:")
+    summary.append(f"• Total Table Utilization: {bottleneck['total_utilization']:.1f}%")
+    summary.append("")  # Add spacing
+    summary.append("Highest Individual Impact:")
+    summary.append(f"• Persona Type: {bottleneck['persona'].title()}")
+    summary.append(f"• Their Utilization: {bottleneck['utilization']:.1f}%")
+    summary.append(f"• Table Type: {bottleneck['table_type']}")
     
     return "\n".join(summary)
 
@@ -616,6 +619,15 @@ def get_plan_features(plan_type):
         ]
     
     return features
+
+def calculate_total_guests(M):
+    """Calculate total monthly guests for M members"""
+    total_guests = 0
+    for persona_type, distribution in PERSONA_DISTRIBUTION.items():
+        member_count = M * distribution
+        monthly_guests = member_count * PERSONAS[persona_type]['guests_per_month']
+        total_guests += monthly_guests
+    return total_guests
 
 if __name__ == "__main__":
     analyze_capacity()
