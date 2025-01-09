@@ -6,6 +6,7 @@ import persona_optimization
 import os
 import io
 import sys
+import importlib
 from contextlib import redirect_stdout
 
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
@@ -187,6 +188,9 @@ def update_config():
     
     # Update the planner file
     update_planner_file(updates)
+    
+    # Reload the planner module to pick up new changes
+    importlib.reload(planner)
     
     return jsonify({"message": "Config updated successfully"})
 
