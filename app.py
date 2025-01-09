@@ -13,7 +13,7 @@ from functools import wraps
 
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
 app = Flask(__name__, template_folder=template_dir)
-CORS(app, supports_credentials=True)
+CORS(app, supports_credentials=True, origins=['http://127.0.0.1:3000', 'http://localhost:3000'])
 
 def check_auth(username, password):
     """Validate credentials"""

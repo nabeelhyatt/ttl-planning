@@ -291,7 +291,7 @@
         function authenticatedFetch(url, options = {}) {
             const credentials = btoa('user:0a82f59436f2ccda6420b060c7eecffe');
             // Use full URL for API requests
-            const apiUrl = url.startsWith('http') ? url : `https://config-update-app-tunnel-dz0k8l9j.devinapps.com${url}`;
+            const apiUrl = url.startsWith('http') ? url : `${window.location.origin}${url}`;
             console.log('Making authenticated request to:', apiUrl);
             const headers = {
                 'Authorization': `Basic ${credentials}`,
