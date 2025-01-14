@@ -1,0 +1,16 @@
+{
+  "name": "obg-members-analysis",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.10.3",
+    "papaparse": "^5.4.1",
+    "tailwindcss": "^3.4.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build"
+  }
+}

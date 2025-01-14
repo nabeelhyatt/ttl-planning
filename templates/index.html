@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tabletop Library Planning Tools</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f7;
+        }
+
+        h1 {
+            font-size: 48px;
+            margin-bottom: 30px;
+        }
+
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            border: 2px solid #3478F6;
+            color: #3478F6;
+            background: white;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: #3478F6;
+            color: white;
+        }
+
+        .tab:hover {
+            background: #3478F6;
+            color: white;
+        }
+
+        .content {
+            display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .content.active {
+            display: block;
+        }
+
+        .config-section {
+            margin-bottom: 30px;
+        }
+
+        .config-section h3 {
+            margin-bottom: 15px;
+            color: #1d1d1f;
+        }
+
+        .config-item {
+            margin-bottom: 15px;
+        }
+
+        .config-item label {
+            display: block;
+            margin-bottom: 5px;
+            color: #1d1d1f;
+        }
+
+        .config-item input {
+            width: 60px;  
+            padding: 5px;
+            border: 1px solid #d2d2d7;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .config-item input:focus {
+            outline: none;
+            border-color: #3478F6;
+        }
+
+        .plan-card {
+            border: 1px solid #d2d2d7;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .plan-features {
+            margin-top: 10px;
+        }
+
+        .plan-features ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .save-button {
+            background: #3478F6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+
+        .save-button:hover {
+            background: #2758c2;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background: #f8f8fa;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .revenue-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .revenue-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+
+        #persona-revenues, #revenue-breakdown {
+            display: grid;
+            gap: 15px;
+        }
+
+        .persona-revenue, .revenue-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .persona-revenue .details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .persona-revenue .member-count {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        #total-revenue {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+            font-weight: bold;
+            font-size: 1.2em;
+            text-align: right;
+        }
+
+        .revenue-item {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 20px;
+        }
+
+        .revenue-item .percentage {
+            color: #666;
+        }
+
+        .summary-box {
+            background: #f5f5f7;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .summary-box h2 {
+            color: #3478F6;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .summary-box ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .summary-box li {
+            margin-bottom: 8px;
+        }
+
+        .config-grid {
+            display: grid;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (min-width: 768px) {
+            .config-grid {
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            }
+        }
+
+        /* Preserve input field sizes */
+        .config-grid .config-item {
+            min-width: 0;
+        }
+
+        .config-grid .config-item input {
+            width: 60px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tabletop Library Planning Tools</h1>
+    
+    <div class="tab-container">
+        <a href="#" class="tab active" onclick="switchTab('planner')">Planner</a>
+        <a href="#" class="tab" onclick="switchTab('optimizer')">Plan Optimizer</a>
+        <a href="#" class="tab" onclick="switchTab('personas')">Persona Optimization</a>
+        <a href="#" class="tab" onclick="switchTab('revenue')">Revenue</a>
+        <a href="#" class="tab" onclick="switchTab('config')">Config</a>
+    </div>
+
+    <div class="content active" id="planner-content">
+        <div class="summary-box">
+            <div id="planner-summary"></div>
+        </div>
+        <pre id="planner-output">Loading...</pre>
+    </div>
+
+    <div class="content" id="optimizer-content">
+        <div class="summary-box">
+            <div id="optimizer-summary"></div>
+        </div>
+        <pre id="optimizer-output">Loading...</pre>
+    </div>
+
+    <div class="content" id="personas-content">
+        <div class="summary-box">
+            <div id="personas-summary"></div>
+        </div>
+        <pre id="personas-output">Loading...</pre>
+    </div>
+
+    <div class="content" id="config-content">
+        <div class="config-section">
+            <h3>Personas</h3>
+            
+            <h4>Persona Distribution</h4>
+            <div class="config-grid" id="persona-distribution">
+                <!-- Will be populated by JavaScript -->
+            </div>
+
+            <h4>Persona Details</h4>
+            <div class="config-grid" id="persona-details">
+                <!-- Will be populated by JavaScript -->
+            </div>
+
+            <h4>Spending Assumptions</h4>
+            <div class="config-grid" id="spending-assumptions">
+                <!-- Will be populated by JavaScript -->
+            </div>
+
+            <h3>Plans</h3>
+            <div class="config-grid" id="plans">
+                <!-- Will be populated by JavaScript -->
+            </div>
+
+            <button onclick="saveConfig()" class="save-button">Save Changes</button>
+        </div>
+    </div>
+
+    <div class="content" id="revenue-content">
+        <div id="revenue-content">
+            <h2>Monthly Revenue Projection</h2>
+            <div class="revenue-section">
+                <h3>Revenue by Persona Type</h3>
+                <div id="persona-revenues"></div>
+            </div>
+            <div class="revenue-section">
+                <h3>Revenue Breakdown</h3>
+                <div id="revenue-breakdown"></div>
+                <div id="total-revenue"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Helper function for authenticated fetch requests
+        function authenticatedFetch(url, options = {}) {
+            const credentials = btoa('user:0a82f59436f2ccda6420b060c7eecffe');
+            // Use full URL for API requests
+            const apiUrl = url.startsWith('http') ? url : `http://localhost:3001${url}`;
+            console.log('Making authenticated request to:', apiUrl);
+            const headers = {
+                'Authorization': `Basic ${credentials}`,
+                ...options.headers
+            };
+            return fetch(apiUrl, { 
+                ...options, 
+                headers,
+                credentials: 'include'  // Include credentials in request
+            }).catch(error => {
+                console.error('Fetch error:', error);
+                throw error;
+            });
+        }
+
+        function switchTab(tabName) {
+            // Hide all content sections
+            document.querySelectorAll('.content').forEach(section => {
+                section.classList.remove('active');
+            });
+            // Show selected content section
+            document.getElementById(`${tabName}-content`).classList.add('active');
+            
+            // Update tab styling
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Load data for the selected tab
+            if (tabName === 'planner') {
+                loadData('planner');
+            } else if (tabName === 'optimizer') {
+                loadData('optimizer');
+            } else if (tabName === 'personas') {
+                loadData('personas');
+            } else if (tabName === 'revenue') {
+                loadRevenue();
+            }
+        }
+
+        function loadData(tabName) {
+            let endpoint;
+            switch (tabName) {
+                case 'planner':
+                    endpoint = '/api/planner';
+                    break;
+                case 'optimizer':
+                    endpoint = '/api/optimizer';
+                    break;
+                case 'personas':
+                    endpoint = '/api/personas';
+                    break;
+                default:
+                    console.error('Unknown tab:', tabName);
+                    return;
+            }
+
+            authenticatedFetch(endpoint)
+                .then(response => response.json())
+                .then(data => {
+                    if (tabName === 'planner') {
+                        document.getElementById('planner-summary').innerHTML = data.summary;
+                        document.getElementById('planner-output').textContent = data.detailed_output;
+                    } else if (tabName === 'optimizer' || tabName === 'personas') {
+                        document.getElementById(`${tabName}-summary`).innerHTML = data.summary.replace(/\n/g, '<br>');
+                        document.getElementById(`${tabName}-output`).innerHTML = `<pre>${data.output}</pre>`;
+                    } else {
+                        document.getElementById(`${tabName}-output`).innerHTML = `<pre>${data.output}</pre>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    if (tabName === 'planner') {
+                        document.getElementById('planner-output').innerHTML = 'Error loading data';
+                    } else if (tabName === 'optimizer' || tabName === 'personas') {
+                        document.getElementById(`${tabName}-summary`).innerHTML = 'Error loading summary';
+                        document.getElementById(`${tabName}-output`).innerHTML = 'Error loading data';
+                    } else {
+                        document.getElementById(`${tabName}-output`).innerHTML = 'Error loading data';
+                    }
+                });
+        }
+
+        async function loadRevenue() {
+            try {
+                const response = await authenticatedFetch('/api/revenue');
+                const data = await response.json();
+                
+                // Update persona revenues
+                const personaRevenuesDiv = document.getElementById('persona-revenues');
+                personaRevenuesDiv.innerHTML = '';
+                
+                for (const [persona, revenue] of Object.entries(data.persona_revenues)) {
+                    const personaDiv = document.createElement('div');
+                    personaDiv.className = 'persona-revenue';
+                    personaDiv.innerHTML = `
+                        <div class="details">
+                            <strong>${capitalize(persona)}</strong>
+                            <span class="member-count">${Math.round(revenue.member_count)} members</span>
+                        </div>
+                        <div>
+                            $${revenue.total.toFixed(2)}/mo ($${revenue.membership.toFixed(2)} membership + $${revenue.extras.toFixed(2)} extras)
+                        </div>
+                    `;
+                    personaRevenuesDiv.appendChild(personaDiv);
+                }
+                
+                // Update revenue breakdown
+                const breakdownDiv = document.getElementById('revenue-breakdown');
+                breakdownDiv.innerHTML = '';
+                
+                const breakdown = data.revenue_breakdown;
+                const total = data.total_revenue;
+                
+                const categories = {
+                    'memberships': 'Memberships',
+                    'guests': 'Guests w/Reservations',
+                    'mixed_events': 'Guests w/Mixed Events',
+                    'snacks': 'Snacks',
+                    'retail': 'Retail'
+                };
+                
+                for (const [key, label] of Object.entries(categories)) {
+                    const amount = breakdown[key];
+                    const percentage = (amount / total * 100).toFixed(1);
+                    
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'revenue-item';
+                    itemDiv.innerHTML = `
+                        <div>${label}</div>
+                        <div>$${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        <div class="percentage">${percentage}%</div>
+                    `;
+                    breakdownDiv.appendChild(itemDiv);
+                }
+                
+                // Update total revenue
+                const totalDiv = document.getElementById('total-revenue');
+                totalDiv.innerHTML = `Total Monthly Revenue: $${total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                
+            } catch (error) {
+                console.error('Error loading revenue data:', error);
+            }
+        }
+
+        function capitalize(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+
+        // Load config values when the page loads
+        window.addEventListener('load', function() {
+            console.log('Fetching config...');
+            authenticatedFetch('/api/config')
+                .then(response => {
+                    console.log('Config response:', response);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(config => {
+                    console.log('Parsed config:', config);
+                    console.log('Received config:', config);  // Debug log
+                    
+                    // Populate persona distribution
+                    const distDiv = document.getElementById('persona-distribution');
+                    distDiv.innerHTML = '';
+                    for (const [persona, percentage] of Object.entries(config.distribution)) {
+                        const displayName = persona.charAt(0).toUpperCase() + persona.slice(1);
+                        distDiv.innerHTML += `
+                            <div class="config-item">
+                                <label>${displayName} (%)</label>
+                                <input type="number" id="dist_${persona}" value="${(percentage * 100).toFixed(1)}" 
+                                       step="0.1" min="0" max="100">
+                            </div>`;
+                    }
+
+                    // Populate persona details
+                    const detailsDiv = document.getElementById('persona-details');
+                    detailsDiv.innerHTML = '';
+                    for (const [persona, details] of Object.entries(config.personas)) {
+                        const displayName = persona.charAt(0).toUpperCase() + persona.slice(1);
+                        detailsDiv.innerHTML += `
+                            <div class="config-item">
+                                <h4>${displayName}</h4>
+                                <label>Price ($)</label>
+                                <input type="number" id="price_${persona}" value="${details.price}" step="1">
+                                <label>Guests per Reserved Visit</label>
+                                <input type="number" id="guests_${persona}" value="${details.guests_per_reserved}" step="0.5">
+                                <label>Reserved Visits</label>
+                                <input type="number" id="reserved_${persona}" value="${details.reserved_visits}" step="1">
+                                <label>Mixed Visits</label>
+                                <input type="number" id="mixed_${persona}" value="${details.mixed_visits}" step="0.5">
+                                <label>Guest Passes</label>
+                                <input type="number" id="passes_${persona}" value="${details.guest_passes}" step="1">
+                                <label>Guest Discount (%)</label>
+                                <input type="number" id="discount_${persona}" value="${details.guest_discount * 100}" step="5">
+                            </div>`;
+                    }
+
+                    // Populate spending assumptions
+                    const spendingDiv = document.getElementById('spending-assumptions');
+                    spendingDiv.innerHTML = '';
+                    for (const [persona, retail] of Object.entries(config.spending_assumptions.retail_monthly)) {
+                        const displayName = persona.charAt(0).toUpperCase() + persona.slice(1);
+                        const snacks = config.spending_assumptions.snacks[persona];
+                        spendingDiv.innerHTML += `
+                            <div class="config-item">
+                                <h4>${displayName}</h4>
+                                <label>Monthly Retail ($)</label>
+                                <input type="number" id="retail_${persona}" value="${retail}" step="0.01">
+                                <label>Snacks per Visit ($)</label>
+                                <input type="number" id="snacks_${persona}" value="${snacks}" step="0.01">
+                            </div>`;
+                    }
+
+                    // Populate plans
+                    const plansDiv = document.getElementById('plans');
+                    plansDiv.innerHTML = '';
+                    const planPrices = config.plan_prices;
+                    for (const [plan, price] of Object.entries(planPrices)) {
+                        const displayName = plan.replace('_plan_price', '').split('_').map(word => 
+                            word.charAt(0).toUpperCase() + word.slice(1)
+                        ).join(' ');
+                        plansDiv.innerHTML += `
+                            <div class="plan-card">
+                                <h4>${displayName} Plan</h4>
+                                <label>Price ($)</label>
+                                <input type="number" id="${plan}" value="${price}" step="1">
+                                <div class="plan-features">
+                                    <h5>Features:</h5>
+                                    <ul>
+                                        ${config.plans[plan.replace('_plan_price', '').toLowerCase()].features.map(f => `<li>${f}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            </div>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading config:', error);
+                });
+        });
+
+        function saveConfig() {
+            const config = {
+                distribution: {},
+                personas: {},
+                spending_assumptions: {
+                    retail_monthly: {},
+                    snacks: {}
+                },
+                plan_prices: {}
+            };
+
+            // Collect persona distribution
+            document.querySelectorAll('[id^="dist_"]').forEach(input => {
+                const persona = input.id.replace('dist_', '');
+                config.distribution[persona] = parseFloat(input.value) / 100;
+            });
+
+            // Collect persona details
+            document.querySelectorAll('.config-item h4').forEach(header => {
+                const persona = header.textContent.toLowerCase();
+                const div = header.parentElement;
+                config.personas[persona] = {
+                    price: parseFloat(div.querySelector(`#price_${persona}`).value),
+                    guests_per_reserved: parseFloat(div.querySelector(`#guests_${persona}`).value),
+                    reserved_visits: parseInt(div.querySelector(`#reserved_${persona}`).value),
+                    mixed_visits: parseFloat(div.querySelector(`#mixed_${persona}`).value),
+                    guest_passes: parseInt(div.querySelector(`#passes_${persona}`).value),
+                    guest_discount: parseFloat(div.querySelector(`#discount_${persona}`).value) / 100
+                };
+
+                // Collect spending assumptions
+                config.spending_assumptions.retail_monthly[persona] = parseFloat(document.querySelector(`#retail_${persona}`).value);
+                config.spending_assumptions.snacks[persona] = parseFloat(document.querySelector(`#snacks_${persona}`).value);
+            });
+
+            // Collect plan prices
+            config.plan_prices = {
+                basic_plan_price: parseFloat(document.querySelector('#basic_plan_price').value),
+                standard_plan_price: parseFloat(document.querySelector('#standard_plan_price').value),
+                family_plan_price: parseFloat(document.querySelector('#family_plan_price').value)
+            };
+
+            console.log('Saving config with data:', config);
+            authenticatedFetch('/api/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Save response:', data);
+                if (data.message === 'Config updated successfully') {
+                    alert('Configuration saved successfully!');
+                    // Refresh all tabs to show updated values
+                    loadData('planner');
+                    loadData('optimizer');
+                    loadData('personas');
+                } else if (data.error) {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                alert('Error saving configuration');
+            });
+        }
+
+        // Load initial data
+        loadData('planner');
+    </script>
+</body>
+</html>
