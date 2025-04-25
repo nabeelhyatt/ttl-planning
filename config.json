@@ -1,0 +1,94 @@
+{
+  "distribution": {
+    "casual": 0.25,
+    "everyday": 0.05,
+    "families": 0.4,
+    "hobbyists": 0.25,
+    "students": 0.05
+  },
+  "personas": {
+    "casual": {
+      "price": 8,
+      "guests_per_reserved": 3,
+      "reserved_visits": 1,
+      "event_visits": 0.5,
+      "guest_passes": 0,
+      "guest_discount": 0
+    },
+    "everyday": {
+      "price": 5,
+      "guests_per_reserved": 3,
+      "reserved_visits": 5,
+      "event_visits": 4,
+      "guest_passes": 0,
+      "guest_discount": 0
+    },
+    "families": {
+      "price": 15,
+      "guests_per_reserved": 2.5,
+      "reserved_visits": 3,
+      "event_visits": 2,
+      "guest_passes": 0,
+      "guest_discount": 0
+    },
+    "hobbyists": {
+      "price": 10,
+      "guests_per_reserved": 3,
+      "reserved_visits": 4,
+      "event_visits": 2,
+      "guest_passes": 0,
+      "guest_discount": 0
+    },
+    "students": {
+      "price": 5,
+      "guests_per_reserved": 3,
+      "reserved_visits": 8,
+      "event_visits": 1,
+      "guest_passes": 0,
+      "guest_discount": 0
+    }
+  },
+  "spending_assumptions": {
+    "retail_monthly": {
+      "casual": 0,
+      "everyday": 15,
+      "families": 10,
+      "hobbyists": 15,
+      "students": 5
+    },
+    "snacks": {
+      "casual": 10,
+      "everyday": 4,
+      "families": 7,
+      "hobbyists": 4,
+      "students": 5
+    }
+  },
+  "plan_prices": {
+    "basic_plan_price": 35,
+    "standard_plan_price": 100,
+    "family_plan_price": 125
+  },
+  "plans": {
+    "basic": {
+      "features": [
+        "Basic Access",
+        "Limited Guest Passes"
+      ]
+    },
+    "standard": {
+      "features": [
+        "Standard Access",
+        "Guest Passes",
+        "Discounts"
+      ]
+    },
+    "family": {
+      "features": [
+        "Family Access",
+        "More Guest Passes",
+        "Event Priority"
+      ]
+    }
+  }
+}

@@ -56,7 +56,7 @@
         }
 
         .config-section {
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
         .config-section h3 {
@@ -65,12 +65,12 @@
         }
 
         .config-item {
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
 
         .config-item label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
             color: #1d1d1f;
         }
 
@@ -91,7 +91,7 @@
             border: 1px solid #d2d2d7;
             padding: 15px;
             border-radius: 10px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
 
         .plan-features {
@@ -236,11 +236,11 @@
     <h1>Tabletop Library Planning Tools</h1>
     
     <div class="tab-container">
-        <a href="#" class="tab active" onclick="switchTab('planner')">Planner</a>
-        <a href="#" class="tab" onclick="switchTab('optimizer')">Plan Optimizer</a>
-        <a href="#" class="tab" onclick="switchTab('personas')">Persona Optimization</a>
-        <a href="#" class="tab" onclick="switchTab('revenue')">Revenue</a>
-        <a href="#" class="tab" onclick="switchTab('config')">Config</a>
+        <a href="#" class="tab active" id="planner-tab" onclick="switchTab('planner')">Planner</a>
+        <a href="#" class="tab" id="optimizer-tab" onclick="switchTab('optimizer')">Plan Optimizer</a>
+        <a href="#" class="tab" id="personas-tab" onclick="switchTab('personas')">Persona Optimization</a>
+        <a href="#" class="tab" id="revenue-tab" onclick="switchTab('revenue')">Revenue</a>
+        <a href="#" class="tab" id="config-tab" onclick="switchTab('config')">Config</a>
     </div>
 
     <div class="content active" id="planner-content">
@@ -329,18 +329,17 @@
         }
 
         function switchTab(tabName) {
-            // Hide all content sections
-            document.querySelectorAll('.content').forEach(section => {
-                section.classList.remove('active');
-            });
-            // Show selected content section
+            // Hide all content divs
+            document.querySelectorAll('.content').forEach(div => div.classList.remove('active'));
+            // Deactivate all tabs
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+
+            // Activate the selected tab and content
             document.getElementById(`${tabName}-content`).classList.add('active');
-            
-            // Update tab styling
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+
+            // Store the active tab name in localStorage
+            localStorage.setItem('lastActiveTab', tabName);
 
             // Load data for the selected tab
             if (tabName === 'planner') {
@@ -351,6 +350,8 @@
                 loadData('personas');
             } else if (tabName === 'revenue') {
                 loadRevenue();
+            } else if (tabName === 'config') {
+                loadConfigData();
             }
         }
 
@@ -383,10 +384,19 @@
                 })
                 .then(data => {
                     console.log(`Received data for ${tabName}:`, data);
-                    // Display the data (assuming summary and output/detailed_output structure)
+
+                    // Format the summary for specific tabs
+                    let formattedSummary = data.summary || 'No summary available.';
+                    if ((tabName === 'optimizer' || tabName === 'personas') && formattedSummary !== 'No summary available.') {
+                        formattedSummary = formattedSummary.replaceAll(' • ', '<br> • ');
+                        formattedSummary = formattedSummary.replace('Plan Matches:', '<br><br>Plan Matches:');
+                        formattedSummary = formattedSummary.replaceAll('\n', '<br>');
+                    }
+
+                    // Display the data
                     contentDiv.innerHTML = `
                         <h2>Summary</h2>
-                        <div class="summary-box">${data.summary || 'No summary available.'}</div>
+                        <div class="summary-box">${formattedSummary}</div>
                         <h2>Details</h2>
                         <pre>${data.output || data.detailed_output || 'No detailed output available.'}</pre>
                     `;
@@ -463,8 +473,7 @@
             return string.charAt(0).toUpperCase() + string.slice(1);
         }
 
-        // Load config values when the page loads
-        window.addEventListener('load', function() {
+        function loadConfigData() {
             console.log('Fetching config...');
             authenticatedFetch('/api/config')
                 .then(response => {
@@ -499,14 +508,14 @@
                         detailsDiv.innerHTML += `
                             <div class="config-item">
                                 <h4>${displayName}</h4>
-                                <label>Price ($)</label>
+                                <label>Willingness to pay per visit ($)</label>
                                 <input type="number" id="price_${persona}" value="${details.price}" step="1">
                                 <label>Guests per Reserved Visit</label>
                                 <input type="number" id="guests_${persona}" value="${details.guests_per_reserved}" step="0.5">
                                 <label>Reserved Visits</label>
                                 <input type="number" id="reserved_${persona}" value="${details.reserved_visits}" step="1">
-                                <label>Mixed Visits</label>
-                                <input type="number" id="mixed_${persona}" value="${details.mixed_visits}" step="0.5">
+                                <label>Event Visits</label>
+                                <input type="number" id="event_${persona}" value="${details.event_visits}" step="0.5">
                                 <label>Guest Passes</label>
                                 <input type="number" id="passes_${persona}" value="${details.guest_passes}" step="1">
                                 <label>Guest Discount (%)</label>
@@ -555,7 +564,7 @@
                 .catch(error => {
                     console.error('Error loading config:', error);
                 });
-        });
+        }
 
         function saveConfig() {
             const config = {
@@ -567,37 +576,68 @@
                 },
                 plan_prices: {}
             };
+            let dataCollectionError = false; // Flag to track errors
 
             // Collect persona distribution
-            document.querySelectorAll('[id^="dist_"]').forEach(input => {
+            document.querySelectorAll('#persona-distribution .config-item input[id^="dist_"]').forEach(input => {
                 const persona = input.id.replace('dist_', '');
                 config.distribution[persona] = parseFloat(input.value) / 100;
             });
 
-            // Collect persona details
-            document.querySelectorAll('.config-item h4').forEach(header => {
+            // Collect persona details ONLY from the #persona-details section
+            document.querySelectorAll('#persona-details .config-item').forEach(div => {
+                const header = div.querySelector('h4');
+                if (!header) return; // Skip if no header found
                 const persona = header.textContent.toLowerCase();
-                const div = header.parentElement;
-                config.personas[persona] = {
-                    price: parseFloat(div.querySelector(`#price_${persona}`).value),
-                    guests_per_reserved: parseFloat(div.querySelector(`#guests_${persona}`).value),
-                    reserved_visits: parseInt(div.querySelector(`#reserved_${persona}`).value),
-                    mixed_visits: parseFloat(div.querySelector(`#mixed_${persona}`).value),
-                    guest_passes: parseInt(div.querySelector(`#passes_${persona}`).value),
-                    guest_discount: parseFloat(div.querySelector(`#discount_${persona}`).value) / 100
-                };
+                try {
+                    config.personas[persona] = {
+                        price: parseFloat(div.querySelector(`#price_${persona}`).value),
+                        guests_per_reserved: parseFloat(div.querySelector(`#guests_${persona}`).value),
+                        reserved_visits: parseInt(div.querySelector(`#reserved_${persona}`).value),
+                        event_visits: parseFloat(div.querySelector(`#event_${persona}`).value),
+                        guest_passes: parseInt(div.querySelector(`#passes_${persona}`).value),
+                        guest_discount: parseFloat(div.querySelector(`#discount_${persona}`).value) / 100
+                    };
+                } catch (e) {
+                    console.error(`Error processing persona details for ${persona}:`, e, div);
+                    alert(`Error reading details for persona: ${persona}. Check input field exists and has a value.`);
+                    dataCollectionError = true;
+                }
+            });
 
-                // Collect spending assumptions
-                config.spending_assumptions.retail_monthly[persona] = parseFloat(document.querySelector(`#retail_${persona}`).value);
-                config.spending_assumptions.snacks[persona] = parseFloat(document.querySelector(`#snacks_${persona}`).value);
+            // Collect spending assumptions ONLY from the #spending-assumptions section
+             document.querySelectorAll('#spending-assumptions .config-item').forEach(div => {
+                const header = div.querySelector('h4');
+                if (!header) return; // Skip if no header found
+                const persona = header.textContent.toLowerCase();
+                 try {
+                    config.spending_assumptions.retail_monthly[persona] = parseFloat(div.querySelector(`#retail_${persona}`).value);
+                    config.spending_assumptions.snacks[persona] = parseFloat(div.querySelector(`#snacks_${persona}`).value);
+                } catch (e) {
+                    console.error(`Error processing spending assumptions for ${persona}:`, e, div);
+                    alert(`Error reading spending assumptions for persona: ${persona}. Check input field exists and has a value.`);
+                    dataCollectionError = true;
+                }
             });
 
             // Collect plan prices
-            config.plan_prices = {
-                basic_plan_price: parseFloat(document.querySelector('#basic_plan_price').value),
-                standard_plan_price: parseFloat(document.querySelector('#standard_plan_price').value),
-                family_plan_price: parseFloat(document.querySelector('#family_plan_price').value)
-            };
+            try {
+                config.plan_prices = {
+                    basic_plan_price: parseFloat(document.querySelector('#basic_plan_price').value),
+                    standard_plan_price: parseFloat(document.querySelector('#standard_plan_price').value),
+                    family_plan_price: parseFloat(document.querySelector('#family_plan_price').value)
+                };
+            } catch (e) {
+                console.error(`Error processing plan prices:`, e);
+                alert(`Error reading plan prices. Check input fields exist and have values.`);
+                dataCollectionError = true;
+            }
+
+            // Only proceed if no errors occurred during data collection
+            if (dataCollectionError) {
+                console.error("Save aborted due to data collection errors.");
+                return; // Stop the function
+            }
 
             console.log('Saving config with data:', config);
             authenticatedFetch('/api/config', {
@@ -607,27 +647,45 @@
                 },
                 body: JSON.stringify(config)
             })
-            .then(response => response.json())
+            .then(response => response.json()) // Assuming server always returns JSON
             .then(data => {
                 console.log('Save response:', data);
                 if (data.message === 'Config updated successfully') {
                     alert('Configuration saved successfully!');
-                    // Refresh all tabs to show updated values
-                    loadData('planner');
-                    loadData('optimizer');
-                    loadData('personas');
+                    // Refresh relevant data displays
+                    loadConfigData(); // Reload config tab fields
+                    loadData('planner'); // Reload planner analysis
+                    loadData('optimizer'); // Reload optimizer results
+                    loadData('personas'); // Reload personas display if needed
+                    loadData('revenue'); // Reload revenue projection
                 } else if (data.error) {
-                    alert('Error: ' + data.error);
+                    // Handle server-side validation errors or other issues
+                    alert('Error saving configuration: ' + data.error);
+                } else {
+                    // Handle unexpected server response
+                    alert('Received unexpected response from server.');
                 }
             })
             .catch((error) => {
-                console.error('Error:', error);
-                alert('Error saving configuration');
+                // Handle network errors or issues with the fetch itself
+                console.error('Error during save fetch:', error);
+                alert('Error sending save request to server.');
             });
         }
 
-        // Load initial data
-        loadData('planner');
+        // --- Page Load Logic ---
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const lastTab = localStorage.getItem('lastActiveTab');
+            // Check if a valid tab ID was stored
+            const validTabs = ['planner', 'optimizer', 'personas', 'revenue', 'config'];
+            if (lastTab && validTabs.includes(lastTab)) {
+                console.log('Restoring last active tab:', lastTab);
+                switchTab(lastTab); // Activate the last used tab
+            } else {
+                console.log('No valid last active tab found, defaulting to planner.');
+                switchTab('planner'); // Default to planner tab
+            }
+        });
     </script>
 </body>
 </html>

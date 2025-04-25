@@ -10,10 +10,59 @@ import sys
 import importlib
 from contextlib import redirect_stdout
 from functools import wraps
+import json
+import math
 
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
 app = Flask(__name__, template_folder=template_dir)
 CORS(app, supports_credentials=True, origins=['http://127.0.0.1:3000', 'http://localhost:3000', 'http://127.0.0.1:3001', 'http://localhost:3001'])
+
+# Define config file path
+CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config.json')
+
+# Load initial config from file
+def load_config():
+    try:
+        with open(CONFIG_FILE, 'r') as f:
+            print(f"Loading configuration from {CONFIG_FILE}")
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"Warning: {CONFIG_FILE} not found. Attempting to use defaults from planner.py.")
+        # Fallback to planner constants if file doesn't exist
+        try:
+            return {
+                'distribution': planner.PERSONA_DISTRIBUTION,
+                'personas': planner.PERSONAS,
+                'spending_assumptions': getattr(planner, 'SPENDING', { # Use getattr for safety
+                    'retail_monthly': {
+                        'casual': 0, 'students': 5, 'families': 10,
+                        'hobbyists': 15, 'everyday': 15
+                    },
+                    'snacks': {
+                        'casual': 10, 'students': 5, 'families': 7,
+                        'hobbyists': 4, 'everyday': 4
+                    }
+                }),
+                'plan_prices': {
+                    'basic_plan_price': float(planner.BASIC_PLAN_PRICE),
+                    'standard_plan_price': float(planner.STANDARD_PLAN_PRICE),
+                    'family_plan_price': float(planner.FAMILY_PLAN_PRICE)
+                },
+                'plans': {
+                    'basic': {'features': planner.get_plan_features('basic')},
+                    'standard': {'features': planner.get_plan_features('standard')},
+                    'family': {'features': planner.get_plan_features('family')}
+                }
+            }
+        except AttributeError as e:
+            print(f"Error accessing planner.py defaults: {e}. Returning empty config.")
+            return {}
+    except json.JSONDecodeError:
+        print(f"Error: Could not decode JSON from {CONFIG_FILE}. Check file format. Returning empty config.")
+        return {} # Or raise an exception
+
+# Global variable to hold the current configuration
+current_config = load_config()
 
 def check_auth(username, password):
     """Validate credentials"""
@@ -154,43 +203,52 @@ def get_personas_data():
         "output": output
     })
 
-@app.route('/api/config')
+@app.route('/api/config', methods=['GET', 'POST']) # Allow GET and POST
 @cross_origin(supports_credentials=True) # Apply CORS handling first
 @requires_auth                       # Then apply authentication
-def get_config():
-    """Get all configurable constants"""
-    print("Config requested, current distribution:", planner.PERSONA_DISTRIBUTION)
-    config = {
-        'distribution': planner.PERSONA_DISTRIBUTION,
-        'personas': planner.PERSONAS,
-        'spending_assumptions': getattr(planner, 'SPENDING', {
-            'retail_monthly': {
-                'casual': 0, 'students': 5, 'families': 10,
-                'hobbyists': 15, 'everyday': 15
-            },
-            'snacks': {
-                'casual': 10, 'students': 5, 'families': 7,
-                'hobbyists': 4, 'everyday': 4
-            }
-        }),
-        'plan_prices': {
-            'basic_plan_price': float(planner.BASIC_PLAN_PRICE),
-            'standard_plan_price': float(planner.STANDARD_PLAN_PRICE),
-            'family_plan_price': float(planner.FAMILY_PLAN_PRICE)
-        },
-        'plans': {
-            'basic': {
-                'features': planner.get_plan_features('basic')
-            },
-            'standard': {
-                'features': planner.get_plan_features('standard')
-            },
-            'family': {
-                'features': planner.get_plan_features('family')
-            }
-        }
-    }
-    return jsonify(config)
+def handle_config():
+    global current_config
+    if request.method == 'POST':
+        try:
+            new_config_data = request.get_json()
+            if not new_config_data:
+                return jsonify({"error": "No JSON data received"}), 400
+
+            print("Received config update request (subset):", {k: new_config_data.get(k) for k in list(new_config_data)[:5]}) # Log subset
+
+            # Basic validation example: check if distribution sums near 1
+            if 'distribution' in new_config_data:
+                dist_sum = sum(new_config_data['distribution'].values())
+                if not math.isclose(dist_sum, 1.0, abs_tol=0.01):
+                     print(f"Warning: Distribution sum is {dist_sum}, not 1.0")
+                     # Decide whether to reject or just warn
+                     # return jsonify({"error": "Distribution percentages must sum to 100%"}), 400
+
+            # Update the in-memory config (simple dictionary update)
+            # Note: This replaces keys entirely. If partial updates are needed,
+            # a recursive merge function would be required.
+            current_config.update(new_config_data)
+
+            # Write updated config back to file
+            try:
+                with open(CONFIG_FILE, 'w') as f:
+                    json.dump(current_config, f, indent=2) # Use indent for readability
+                print(f"Configuration successfully written to {CONFIG_FILE}")
+                return jsonify({"message": "Config updated successfully"})
+            except IOError as e:
+                print(f"Error writing config file: {e}")
+                return jsonify({"error": "Failed to write config file"}), 500
+
+        except Exception as e:
+            print(f"Error processing config update: {e}")
+            import traceback
+            traceback.print_exc() # Print full traceback for debugging
+            return jsonify({"error": "Internal server error processing config update"}), 500
+
+    elif request.method == 'GET':
+        # Return the current in-memory configuration
+        print("GET request for config, returning current in-memory config.")
+        return jsonify(current_config)
 
 @app.route('/api/revenue')
 def get_revenue_data():
@@ -296,4 +354,8 @@ def update_config():
     return jsonify({"message": "Config updated successfully"})
 
 if __name__ == '__main__':
+    # Ensure config is loaded before running
+    if not current_config:
+         print("Critical Error: Configuration could not be loaded. Exiting.")
+         exit(1)
     app.run(debug=True, host='0.0.0.0', port=3001)

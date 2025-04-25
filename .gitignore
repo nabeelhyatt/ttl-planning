@@ -1,9 +1,16 @@
+# Python cache
 __pycache__/
 *.pyc
-.DS_Store
+
+# Python cache
+__pycache__/
+*.pyc
 
 # Virtual environment
 venv/
 
 # VS Code
 *.code-workspace
+
+# Mac OS X
+.DS_Store
