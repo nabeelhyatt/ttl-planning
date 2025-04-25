@@ -6,7 +6,7 @@ class ValueCalculator:
         self.personas = {}
         for persona_type, data in planner.PERSONAS.items():
             self.personas[persona_type] = {
-                "visits_per_month": data['reserved_visits'] + data['mixed_visits'],
+                "visits_per_month": data['reserved_visits'] + data['event_visits'],
                 "price_per_visit": data['price'],
                 "guests_per_month": data['guests_per_month'],
                 "game_checkouts": data['game_checkouts']

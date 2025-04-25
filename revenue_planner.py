@@ -60,12 +60,12 @@ class RevenuePlanner:
             # Calculate mixed event revenue (if they have access)
             plan_features = planner.calculate_plan_value(plan_type)["features"]
             mixed_revenue = (
-                persona_data['mixed_visits'] * 
+                persona_data['event_visits'] * 
                 planner.GUEST_PRICE if plan_features["mixed_access"] else 0
             )
             
             # Calculate total visits per month
-            visits_per_month = persona_data['reserved_visits'] + persona_data['mixed_visits']
+            visits_per_month = persona_data['reserved_visits'] + persona_data['event_visits']
             
             # Calculate snack and retail revenue
             snack_revenue = (

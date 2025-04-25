@@ -62,7 +62,7 @@ PERSONAS = {
         'price': 8,   # price willing to pay per visit
         'guests_per_month': 3,   # Assumes 2 guests on average for a 4-top
         'reserved_visits': 1,       # visits/month
-        'mixed_visits': .5,        # mixed visits/month
+        'event_visits': .5,        # event visits/month
         'game_checkouts': 0,          # 1 game checkout per month
         'avg_group_size': 4
     },
@@ -70,7 +70,7 @@ PERSONAS = {
         'price': 5,   # price willing to pay per visit
         'guests_per_month': 3,   # Assumes 3 guests for a 4-top
         'reserved_visits': 8,       # visits/month
-        'mixed_visits': 1,          # mixed visits/month
+        'event_visits': 1,          # event visits/month
         'game_checkouts': 1,          # 1 game checkout per month
         'avg_group_size': 3
     },
@@ -78,7 +78,7 @@ PERSONAS = {
         'price': 15,   # price willing to pay per visit
         'guests_per_month': 2.5, # Average between solo parent (2 kids) and family visit (3 family)
         'reserved_visits': 3,       # visits/month
-        'mixed_visits': 2,          # mixed visits/month
+        'event_visits': 2,          # event visits/month
         'game_checkouts': 1,          # 1 game checkout per month
         'avg_group_size': 4
     },
@@ -86,7 +86,7 @@ PERSONAS = {
         'price': 10,   # price willing to pay per visit
         'guests_per_month': 3,   # Assumes 3 guests for a 4-top
         'reserved_visits': 4,       # visits/month
-        'mixed_visits': 2,          # mixed visits/month
+        'event_visits': 2,          # event visits/month
         'game_checkouts': 2,          # 2 game checkouts per month
         'avg_group_size': 4
     },
@@ -94,7 +94,7 @@ PERSONAS = {
         'price': 5,   # price willing to pay per visit
         'guests_per_month': 3,   # Assumes 3 guests for a 4-top
         'reserved_visits': 8,       # visits/month
-        'mixed_visits': 4,          # mixed event visits/month
+        'event_visits': 4,          # event visits/month
         'game_checkouts': 2,          # 10 game checkouts per month
         'avg_group_size': 4
     }
@@ -163,24 +163,26 @@ def compute_demands(M):
         # Calculate total monthly reserved blocks (1 visit = 1 block)
         monthly_reserved_visits = member_count * persona['reserved_visits']
         monthly_reserved_blocks = monthly_reserved_visits  # Each visit takes one block
-        
-        # For reserved visits, calculate group size (member + guests)
-        group_size = 1 + persona['guests_per_month']  # member + average guests
-        
+
+        # Calculate monthly mixed visits and blocks
+        monthly_event_visits = member_count * persona['event_visits']
+        monthly_event_blocks = monthly_event_visits  # Each event visit takes one block
+
         print(f"\n{persona_type.title()}:")
         print(f"  Members: {member_count}")
         print(f"  Reserved visits per month: {monthly_reserved_visits}")
-        print(f"  Monthly blocks needed: {monthly_reserved_blocks}")
-        print(f"  Group size (member + {persona['guests_per_month']} guests): {group_size}")
-        
+        print(f"  Event visits per month: {monthly_event_visits}")
+        print(f"  Monthly blocks needed: {monthly_reserved_blocks + monthly_event_blocks}")
+        print(f"  Group size (member + {persona['guests_per_month']} guests): {1 + persona['guests_per_month']}")
+
         # Determine table blocks needed based on group size
-        if group_size <= 2:
+        if 1 + persona['guests_per_month'] <= 2:
             monthly_demands['reserved_2_blocks'] += monthly_reserved_blocks
             print(f"  → Needs {monthly_reserved_blocks} 2-top blocks")
-        elif group_size <= 4:
+        elif 1 + persona['guests_per_month'] <= 4:
             monthly_demands['reserved_4_blocks'] += monthly_reserved_blocks
             print(f"  → Needs {monthly_reserved_blocks} 4-top blocks")
-        elif group_size <= 6:
+        elif 1 + persona['guests_per_month'] <= 6:
             monthly_demands['reserved_6_blocks'] += monthly_reserved_blocks
             print(f"  → Needs {monthly_reserved_blocks} 6-top blocks")
         else:  # group_size <= 8
@@ -188,18 +190,16 @@ def compute_demands(M):
             print(f"  → Needs {monthly_reserved_blocks} 8-top blocks")
         
         # Calculate mixed seating demand (1 seat per person, no guests)
-        monthly_mixed_visits = member_count * persona['mixed_visits']
-        monthly_mixed_blocks = monthly_mixed_visits  # Each mixed visit takes one block
+        monthly_mixed_blocks = monthly_event_visits  # Each event visit takes one block
         monthly_demands['mixed_seat_blocks'] += monthly_mixed_blocks
-        print(f"  Mixed visits per month: {monthly_mixed_visits}")
         print(f"  Mixed blocks needed: {monthly_mixed_blocks} (1 seat each)")
         
         # Store per-persona demands
         monthly_demands['type_demands'][persona_type] = {
-            'reserved_8_blocks': monthly_reserved_blocks if group_size > 6 else 0,
-            'reserved_6_blocks': monthly_reserved_blocks if 4 < group_size <= 6 else 0,
-            'reserved_4_blocks': monthly_reserved_blocks if 2 < group_size <= 4 else 0,
-            'reserved_2_blocks': monthly_reserved_blocks if group_size <= 2 else 0,
+            'reserved_8_blocks': monthly_reserved_blocks if 1 + persona['guests_per_month'] > 6 else 0,
+            'reserved_6_blocks': monthly_reserved_blocks if 4 < 1 + persona['guests_per_month'] <= 6 else 0,
+            'reserved_4_blocks': monthly_reserved_blocks if 2 < 1 + persona['guests_per_month'] <= 4 else 0,
+            'reserved_2_blocks': monthly_reserved_blocks if 1 + persona['guests_per_month'] <= 2 else 0,
             'mixed_seat_blocks': monthly_mixed_blocks
         }
     
