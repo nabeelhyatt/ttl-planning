@@ -1,5 +1,5 @@
 from flask import Flask, render_template, jsonify, request
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 import planner
 import plan_optimizer
 import persona_optimization
@@ -155,7 +155,8 @@ def get_personas_data():
     })
 
 @app.route('/api/config')
-@requires_auth
+@cross_origin(supports_credentials=True) # Apply CORS handling first
+@requires_auth                       # Then apply authentication
 def get_config():
     """Get all configurable constants"""
     print("Config requested, current distribution:", planner.PERSONA_DISTRIBUTION)
