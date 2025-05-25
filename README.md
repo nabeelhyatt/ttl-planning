@@ -77,6 +77,100 @@ This project is a Python-based web application designed to model, analyze, and o
 
 6.  Access the application in your web browser at [http://localhost:3001](http://localhost:3001).
 
+## Deployment
+
+### Local Development
+
+For local development, use the standard Flask development server:
+
+```bash
+# Using uv (recommended)
+uv run python app.py
+
+# Or with traditional venv
+source venv/bin/activate
+python app.py
+```
+
+The application will be available at `http://localhost:3001`.
+
+### Production Deployment (Zeabur)
+
+This application is deployed on [Zeabur](https://zeabur.com), a cloud platform that supports direct Python deployment without Docker containers.
+
+#### Deployment Configuration
+
+1. **Procfile**: The `Procfile` defines how Zeabur should start the application:
+   ```
+   web: gunicorn app:app --bind 0.0.0.0:$PORT
+   ```
+   - Uses Gunicorn as the production WSGI server
+   - Binds to the `$PORT` environment variable provided by Zeabur
+   - Points to the `app` variable in `app.py`
+
+2. **Requirements**: Dependencies are managed via `requirements.txt` for Zeabur compatibility:
+   ```
+   flask==3.0.0
+   flask-cors==4.0.0
+   pulp==2.7.0
+   gunicorn==21.2.0
+   pandas==2.1.4
+   numpy==1.26.3
+   python-dotenv==1.0.0
+   ```
+
+3. **Package Management**: While we use `uv` locally for development, `requirements.txt` is maintained for deployment compatibility.
+
+#### Important Deployment Considerations
+
+**⚠️ Never Use Hardcoded URLs in Frontend Code**
+
+The frontend JavaScript must work in both local development and production environments. Always use relative URLs for API requests:
+
+```javascript
+// ✅ CORRECT - Works in both local and production
+fetch('/api/config')
+
+// ❌ WRONG - Only works locally
+fetch('http://localhost:3001/api/config')
+```
+
+**Authentication Handling**
+
+The `/api/config` endpoint requires HTTP Basic Authentication. The frontend uses the `authenticatedFetch()` helper function that:
+- Adds proper Authorization headers
+- Uses relative URLs for cross-environment compatibility
+- Includes credentials for CORS requests
+
+**Environment-Agnostic Design**
+
+- All API endpoints use relative paths (`/api/...`)
+- No hardcoded localhost references in production code
+- Port binding uses environment variables (`$PORT` in Procfile)
+- CORS configuration supports both local and production origins
+
+#### Deployment Process
+
+1. **Push to GitHub**: All changes must be committed and pushed to the main branch
+2. **Automatic Deployment**: Zeabur automatically detects changes and redeploys
+3. **Build Process**: Zeabur installs dependencies from `requirements.txt` and starts the app using the Procfile
+4. **Health Check**: Verify the application starts correctly by checking runtime logs
+
+#### Troubleshooting Deployment Issues
+
+Common issues and solutions:
+
+- **"Hello from ttl-planning!" loops**: Remove any test files (like `main.py`) that might be detected as the main entrypoint
+- **Empty Setup page fields**: Check that API requests use relative URLs, not hardcoded localhost
+- **Authentication errors**: Verify the `authenticatedFetch()` function includes proper headers
+- **Port binding errors**: Ensure the Procfile uses `$PORT` environment variable
+
+#### Monitoring
+
+- **Runtime Logs**: Available in Zeabur dashboard for debugging
+- **Build Logs**: Show dependency installation and startup process
+- **Health Status**: Monitor application availability and response times
+
 ## Configuration
 
 Key operational parameters and model assumptions (e.g., table counts, operating hours, plan prices, persona behavior, value calculations) are primarily defined as constants directly within `planner.py` and `value_calculator.py`. Modifying the core model often requires editing these files.
