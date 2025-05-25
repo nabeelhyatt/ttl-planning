@@ -514,8 +514,8 @@
         // Helper function for authenticated fetch requests
         function authenticatedFetch(url, options = {}) {
             const credentials = btoa('user:0a82f59436f2ccda6420b060c7eecffe');
-            // Use full URL for API requests
-            const apiUrl = url.startsWith('http') ? url : `http://localhost:3001${url}`;
+            // Use relative URL for API requests (works in both local and production)
+            const apiUrl = url.startsWith('http') ? url : url;
             console.log('Making authenticated request to:', apiUrl);
             const headers = {
                 'Authorization': `Basic ${credentials}`,
