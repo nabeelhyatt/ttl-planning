@@ -1,3 +1,6 @@
+# ABOUTME: Utility script to parse raw member data from text format into structured CSV
+# ABOUTME: Normalizes visit frequency data and extracts member information for analysis
+
 import re
 import csv
 

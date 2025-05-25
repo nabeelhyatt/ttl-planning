@@ -230,6 +230,155 @@
         .config-grid .config-item input {
             width: 60px;
         }
+
+        /* Airtable-style Setup page */
+        .airtable-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .airtable-header {
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            padding: 16px 20px;
+            font-weight: 600;
+            font-size: 16px;
+            color: #495057;
+        }
+
+        .airtable-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .airtable-table th {
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            border-right: 1px solid #e9ecef;
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .airtable-table th:last-child {
+            border-right: none;
+        }
+
+        .airtable-table td {
+            border-bottom: 1px solid #f1f3f4;
+            border-right: 1px solid #f1f3f4;
+            padding: 12px 16px;
+            vertical-align: middle;
+        }
+
+        .airtable-table td:last-child {
+            border-right: none;
+        }
+
+        .airtable-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .airtable-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .airtable-input {
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 14px;
+            width: 80px;
+            background: white;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .airtable-input:focus {
+            outline: none;
+            border-color: #3478F6;
+            box-shadow: 0 0 0 3px rgba(52, 120, 246, 0.1);
+        }
+
+        .airtable-input.wide {
+            width: 120px;
+        }
+
+        .persona-name {
+            font-weight: 600;
+            color: #374151;
+            display: flex;
+            align-items: center;
+        }
+
+        .persona-name::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background: #3478F6;
+        }
+
+        .persona-name.casual::before { background: #10b981; }
+        .persona-name.students::before { background: #f59e0b; }
+        .persona-name.families::before { background: #ef4444; }
+        .persona-name.hobbyists::before { background: #8b5cf6; }
+        .persona-name.everyday::before { background: #06b6d4; }
+
+        .plan-features-list {
+            font-size: 12px;
+            color: #6b7280;
+            margin: 4px 0 0 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .plan-features-list li {
+            margin-bottom: 2px;
+        }
+
+        .plan-features-list li::before {
+            content: '•';
+            color: #9ca3af;
+            margin-right: 6px;
+        }
+
+        .save-button {
+            background: #3478F6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 24px 0;
+            transition: background-color 0.2s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .save-button:hover {
+            background: #2563eb;
+        }
+
+        .config-section {
+            max-width: none;
+        }
+
+        .section-description {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
@@ -266,29 +415,83 @@
 
     <div class="content" id="config-content">
         <div class="config-section">
-            <h3>Personas</h3>
-            
-            <h4>Persona Distribution</h4>
-            <div class="config-grid" id="persona-distribution">
-                <!-- Will be populated by JavaScript -->
+            <!-- Persona Distribution Table -->
+            <div class="airtable-container">
+                <div class="airtable-header">Persona Distribution</div>
+                <div class="section-description">Define what percentage of your member base each persona represents. Total should equal 100%.</div>
+                <table class="airtable-table" id="persona-distribution-table">
+                    <thead>
+                        <tr>
+                            <th>Persona Type</th>
+                            <th>Percentage (%)</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="persona-distribution">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
             </div>
 
-            <h4>Persona Details</h4>
-            <div class="config-grid" id="persona-details">
-                <!-- Will be populated by JavaScript -->
+            <!-- Persona Details Table -->
+            <div class="airtable-container">
+                <div class="airtable-header">Persona Behavior & Pricing</div>
+                <div class="section-description">Configure how each persona type behaves and their willingness to pay.</div>
+                <table class="airtable-table" id="persona-details-table">
+                    <thead>
+                        <tr>
+                            <th>Persona</th>
+                            <th>Price per Visit ($)</th>
+                            <th>Guests per Visit</th>
+                            <th>Reserved Visits/Month</th>
+                            <th>Event Visits/Month</th>
+                            <th>Guest Passes</th>
+                            <th>Guest Discount (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="persona-details">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
             </div>
 
-            <h4>Spending Assumptions</h4>
-            <div class="config-grid" id="spending-assumptions">
-                <!-- Will be populated by JavaScript -->
+            <!-- Spending Assumptions Table -->
+            <div class="airtable-container">
+                <div class="airtable-header">Spending Assumptions</div>
+                <div class="section-description">Estimate how much each persona spends on retail and snacks.</div>
+                <table class="airtable-table" id="spending-assumptions-table">
+                    <thead>
+                        <tr>
+                            <th>Persona</th>
+                            <th>Monthly Retail ($)</th>
+                            <th>Snacks per Visit ($)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="spending-assumptions">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
             </div>
 
-            <h3>Plans</h3>
-            <div class="config-grid" id="plans">
-                <!-- Will be populated by JavaScript -->
+            <!-- Membership Plans Table -->
+            <div class="airtable-container">
+                <div class="airtable-header">Membership Plans</div>
+                <div class="section-description">Set pricing for your membership tiers and view their included features.</div>
+                <table class="airtable-table" id="plans-table">
+                    <thead>
+                        <tr>
+                            <th>Plan Type</th>
+                            <th>Monthly Price ($)</th>
+                            <th>Features</th>
+                        </tr>
+                    </thead>
+                    <tbody id="plans">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
             </div>
 
-            <button onclick="saveConfig()" class="save-button">Save Changes</button>
+            <button onclick="saveConfig()" class="save-button">💾 Save Configuration</button>
         </div>
     </div>
 
@@ -492,12 +695,19 @@
                     distDiv.innerHTML = '';
                     for (const [persona, percentage] of Object.entries(config.distribution)) {
                         const displayName = persona.charAt(0).toUpperCase() + persona.slice(1);
+                        const descriptions = {
+                            'casual': 'Occasional visitors who come for social gaming',
+                            'students': 'Budget-conscious frequent players',
+                            'families': 'Parents with children, value-focused',
+                            'hobbyists': 'Dedicated gamers with specific interests',
+                            'everyday': 'Regular customers who visit frequently'
+                        };
                         distDiv.innerHTML += `
-                            <div class="config-item">
-                                <label>${displayName} (%)</label>
-                                <input type="number" id="dist_${persona}" value="${(percentage * 100).toFixed(1)}" 
-                                       step="0.1" min="0" max="100">
-                            </div>`;
+                            <tr>
+                                <td><span class="persona-name ${persona}">${displayName}</span></td>
+                                <td><input type="number" class="airtable-input" id="dist_${persona}" value="${(percentage * 100).toFixed(1)}" step="0.1" min="0" max="100">%</td>
+                                <td>${descriptions[persona] || 'No description available'}</td>
+                            </tr>`;
                     }
 
                     // Populate persona details
@@ -506,21 +716,15 @@
                     for (const [persona, details] of Object.entries(config.personas)) {
                         const displayName = persona.charAt(0).toUpperCase() + persona.slice(1);
                         detailsDiv.innerHTML += `
-                            <div class="config-item">
-                                <h4>${displayName}</h4>
-                                <label>Willingness to pay per visit ($)</label>
-                                <input type="number" id="price_${persona}" value="${details.price}" step="1">
-                                <label>Guests per Reserved Visit</label>
-                                <input type="number" id="guests_${persona}" value="${details.guests_per_reserved}" step="0.5">
-                                <label>Reserved Visits</label>
-                                <input type="number" id="reserved_${persona}" value="${details.reserved_visits}" step="1">
-                                <label>Event Visits</label>
-                                <input type="number" id="event_${persona}" value="${details.event_visits}" step="0.5">
-                                <label>Guest Passes</label>
-                                <input type="number" id="passes_${persona}" value="${details.guest_passes}" step="1">
-                                <label>Guest Discount (%)</label>
-                                <input type="number" id="discount_${persona}" value="${details.guest_discount * 100}" step="5">
-                            </div>`;
+                            <tr>
+                                <td><span class="persona-name ${persona}">${displayName}</span></td>
+                                <td><input type="number" class="airtable-input" id="price_${persona}" value="${details.price}" step="1" min="0"></td>
+                                <td><input type="number" class="airtable-input" id="guests_${persona}" value="${details.guests_per_reserved}" step="0.5" min="0"></td>
+                                <td><input type="number" class="airtable-input" id="reserved_${persona}" value="${details.reserved_visits}" step="1" min="0"></td>
+                                <td><input type="number" class="airtable-input" id="event_${persona}" value="${details.event_visits}" step="0.5" min="0"></td>
+                                <td><input type="number" class="airtable-input" id="passes_${persona}" value="${details.guest_passes}" step="1" min="0"></td>
+                                <td><input type="number" class="airtable-input" id="discount_${persona}" value="${(details.guest_discount * 100).toFixed(1)}" step="5" min="0" max="100">%</td>
+                            </tr>`;
                     }
 
                     // Populate spending assumptions
@@ -530,13 +734,11 @@
                         const displayName = persona.charAt(0).toUpperCase() + persona.slice(1);
                         const snacks = config.spending_assumptions.snacks[persona];
                         spendingDiv.innerHTML += `
-                            <div class="config-item">
-                                <h4>${displayName}</h4>
-                                <label>Monthly Retail ($)</label>
-                                <input type="number" id="retail_${persona}" value="${retail}" step="0.01">
-                                <label>Snacks per Visit ($)</label>
-                                <input type="number" id="snacks_${persona}" value="${snacks}" step="0.01">
-                            </div>`;
+                            <tr>
+                                <td><span class="persona-name ${persona}">${displayName}</span></td>
+                                <td><input type="number" class="airtable-input" id="retail_${persona}" value="${retail}" step="0.01" min="0"></td>
+                                <td><input type="number" class="airtable-input" id="snacks_${persona}" value="${snacks}" step="0.01" min="0"></td>
+                            </tr>`;
                     }
 
                     // Populate plans
@@ -547,18 +749,18 @@
                         const displayName = plan.replace('_plan_price', '').split('_').map(word => 
                             word.charAt(0).toUpperCase() + word.slice(1)
                         ).join(' ');
+                        const planKey = plan.replace('_plan_price', '').toLowerCase();
+                        const features = config.plans[planKey]?.features || [];
                         plansDiv.innerHTML += `
-                            <div class="plan-card">
-                                <h4>${displayName} Plan</h4>
-                                <label>Price ($)</label>
-                                <input type="number" id="${plan}" value="${price}" step="1">
-                                <div class="plan-features">
-                                    <h5>Features:</h5>
-                                    <ul>
-                                        ${config.plans[plan.replace('_plan_price', '').toLowerCase()].features.map(f => `<li>${f}</li>`).join('')}
+                            <tr>
+                                <td><strong>${displayName}</strong></td>
+                                <td><input type="number" class="airtable-input wide" id="${plan}" value="${price}" step="1" min="0"></td>
+                                <td>
+                                    <ul class="plan-features-list">
+                                        ${features.map(f => `<li>${f}</li>`).join('')}
                                     </ul>
-                                </div>
-                            </div>`;
+                                </td>
+                            </tr>`;
                     }
                 })
                 .catch(error => {
@@ -579,42 +781,44 @@
             let dataCollectionError = false; // Flag to track errors
 
             // Collect persona distribution
-            document.querySelectorAll('#persona-distribution .config-item input[id^="dist_"]').forEach(input => {
+            document.querySelectorAll('#persona-distribution input[id^="dist_"]').forEach(input => {
                 const persona = input.id.replace('dist_', '');
                 config.distribution[persona] = parseFloat(input.value) / 100;
             });
 
-            // Collect persona details ONLY from the #persona-details section
-            document.querySelectorAll('#persona-details .config-item').forEach(div => {
-                const header = div.querySelector('h4');
-                if (!header) return; // Skip if no header found
-                const persona = header.textContent.toLowerCase();
+            // Collect persona details
+            document.querySelectorAll('#persona-details tr').forEach(row => {
+                const personaSpan = row.querySelector('.persona-name');
+                if (!personaSpan) return;
+                
+                const persona = personaSpan.textContent.toLowerCase();
                 try {
                     config.personas[persona] = {
-                        price: parseFloat(div.querySelector(`#price_${persona}`).value),
-                        guests_per_reserved: parseFloat(div.querySelector(`#guests_${persona}`).value),
-                        reserved_visits: parseInt(div.querySelector(`#reserved_${persona}`).value),
-                        event_visits: parseFloat(div.querySelector(`#event_${persona}`).value),
-                        guest_passes: parseInt(div.querySelector(`#passes_${persona}`).value),
-                        guest_discount: parseFloat(div.querySelector(`#discount_${persona}`).value) / 100
+                        price: parseFloat(row.querySelector(`#price_${persona}`).value),
+                        guests_per_reserved: parseFloat(row.querySelector(`#guests_${persona}`).value),
+                        reserved_visits: parseInt(row.querySelector(`#reserved_${persona}`).value),
+                        event_visits: parseFloat(row.querySelector(`#event_${persona}`).value),
+                        guest_passes: parseInt(row.querySelector(`#passes_${persona}`).value),
+                        guest_discount: parseFloat(row.querySelector(`#discount_${persona}`).value) / 100
                     };
                 } catch (e) {
-                    console.error(`Error processing persona details for ${persona}:`, e, div);
+                    console.error(`Error processing persona details for ${persona}:`, e);
                     alert(`Error reading details for persona: ${persona}. Check input field exists and has a value.`);
                     dataCollectionError = true;
                 }
             });
 
-            // Collect spending assumptions ONLY from the #spending-assumptions section
-             document.querySelectorAll('#spending-assumptions .config-item').forEach(div => {
-                const header = div.querySelector('h4');
-                if (!header) return; // Skip if no header found
-                const persona = header.textContent.toLowerCase();
-                 try {
-                    config.spending_assumptions.retail_monthly[persona] = parseFloat(div.querySelector(`#retail_${persona}`).value);
-                    config.spending_assumptions.snacks[persona] = parseFloat(div.querySelector(`#snacks_${persona}`).value);
+            // Collect spending assumptions
+            document.querySelectorAll('#spending-assumptions tr').forEach(row => {
+                const personaSpan = row.querySelector('.persona-name');
+                if (!personaSpan) return;
+                
+                const persona = personaSpan.textContent.toLowerCase();
+                try {
+                    config.spending_assumptions.retail_monthly[persona] = parseFloat(row.querySelector(`#retail_${persona}`).value);
+                    config.spending_assumptions.snacks[persona] = parseFloat(row.querySelector(`#snacks_${persona}`).value);
                 } catch (e) {
-                    console.error(`Error processing spending assumptions for ${persona}:`, e, div);
+                    console.error(`Error processing spending assumptions for ${persona}:`, e);
                     alert(`Error reading spending assumptions for persona: ${persona}. Check input field exists and has a value.`);
                     dataCollectionError = true;
                 }

@@ -1,3 +1,6 @@
+# ABOUTME: Calculates monthly revenue projections based on membership plans and capacity
+# ABOUTME: Integrates persona behavior, plan selection, and spending assumptions for financial modeling
+
 import planner
 from plan_optimizer import PlanOptimizer
 from value_calculator import ValueCalculator

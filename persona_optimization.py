@@ -1,3 +1,6 @@
+# ABOUTME: Analyzes customer personas and their optimal membership plan matches
+# ABOUTME: Evaluates value ratios and recommends best-fit plans for each persona type
+
 import planner
 from value_calculator import ValueCalculator
 

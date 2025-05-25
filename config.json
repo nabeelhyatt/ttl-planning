@@ -1,8 +1,8 @@
 {
   "distribution": {
     "casual": 0.25,
-    "everyday": 0.05,
-    "families": 0.4,
+    "everyday": 0.1,
+    "families": 0.35,
     "hobbyists": 0.25,
     "students": 0.05
   },

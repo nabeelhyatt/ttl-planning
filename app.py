@@ -1,3 +1,6 @@
+# ABOUTME: Main Flask application with full feature set including authenticated configuration management
+# ABOUTME: Provides REST API endpoints for capacity analysis, optimization, personas, revenue, and config
+
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS, cross_origin
 import planner

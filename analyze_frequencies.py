@@ -1,3 +1,6 @@
+# ABOUTME: Utility script to analyze and normalize member visit frequency data
+# ABOUTME: Provides frequency mapping suggestions for converting text to numeric values
+
 import csv
 from collections import defaultdict
 

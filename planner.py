@@ -1,3 +1,6 @@
+# ABOUTME: Core capacity planning and optimization logic for tabletop library operations
+# ABOUTME: Handles table allocation, persona modeling, demand calculation, and linear programming optimization
+
 import pulp
 import math
 

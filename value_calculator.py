@@ -1,3 +1,6 @@
+# ABOUTME: Calculates perceived value of membership plans for different customer personas
+# ABOUTME: Determines value ratios based on usage patterns, features, and pricing
+
 import planner
 
 class ValueCalculator:
