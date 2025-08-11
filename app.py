@@ -9,6 +9,8 @@ import planner
 import plan_optimizer
 import persona_optimization
 import revenue_planner
+from expenses import ExpenseCalculator
+from financial_dashboard import FinancialDashboard
 from functools import wraps
 
 # Set up Flask app
@@ -158,6 +160,45 @@ def get_constants():
         'COUNCIL_PLAN_PRICE': float(planner.COUNCIL_PLAN_PRICE),
     }
     return jsonify(constants)
+
+@app.route('/api/expenses')
+def get_expenses():
+    try:
+        calculator = ExpenseCalculator()
+        monthly = calculator.calculate_monthly_expenses()
+        annual = calculator.calculate_annual_expenses()
+        percentages = calculator.get_expense_breakdown_percentages()
+        
+        return jsonify({
+            'monthly': monthly,
+            'annual': annual,
+            'percentages': percentages
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/financial-summary')
+def get_financial_summary():
+    try:
+        # Get member count from query params or use default
+        member_count = int(request.args.get('members', 200))
+        
+        dashboard = FinancialDashboard()
+        metrics = dashboard.generate_summary_metrics(member_count)
+        
+        return jsonify(metrics)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/break-even')
+def get_break_even():
+    try:
+        dashboard = FinancialDashboard()
+        break_even = dashboard.calculate_break_even()
+        
+        return jsonify(break_even)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(port=3002, debug=True)

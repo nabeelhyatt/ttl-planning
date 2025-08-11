@@ -124,5 +124,85 @@
         "$75/month family addon"
       ]
     }
+  },
+  "expenses": {
+    "payroll": {
+      "salaries": {
+        "description": "Fixed monthly salaries",
+        "amount": 20000.0
+      },
+      "hourly_wages": {
+        "description": "Variable hourly wages",
+        "amount": 6825.0
+      }
+    },
+    "facilities": {
+      "rent": {
+        "description": "Monthly rent",
+        "amount": 7778.0
+      },
+      "utilities": {
+        "description": "Electricity, water, gas",
+        "amount": 500.0
+      },
+      "insurance": {
+        "description": "Business insurance",
+        "amount": 800.0
+      },
+      "supplies": {
+        "description": "Cleaning, office supplies",
+        "amount": 500.0
+      },
+      "maintenance": {
+        "description": "Repairs and maintenance",
+        "amount": 250.0
+      },
+      "other": {
+        "description": "Miscellaneous costs",
+        "amount": 531.0
+      }
+    },
+    "software": {
+      "mail_chimp": {
+        "description": "Email marketing",
+        "amount": 20.0
+      },
+      "twilio": {
+        "description": "SMS notifications",
+        "amount": 50.0
+      },
+      "square": {
+        "description": "Payment processing",
+        "amount": 150.0
+      },
+      "quickbooks": {
+        "description": "Accounting",
+        "amount": 35.0
+      },
+      "google_workspace": {
+        "description": "Email and productivity",
+        "amount": 30.0
+      },
+      "website_hosting": {
+        "description": "Web hosting",
+        "amount": 200.0
+      },
+      "other_software": {
+        "description": "Other subscriptions",
+        "amount": 1250.99
+      }
+    }
+  },
+  "revenue_assumptions": {
+    "member_count": 200,
+    "setup_fee_amount": 50,
+    "member_turnover_rate": 0.2,
+    "non_member_retail_multiplier": 1.2,
+    "membership_tiers": {
+      "description": "Simple tier distribution matching Excel",
+      "standard": 150,
+      "family": 40,
+      "student": 10
+    }
   }
 }

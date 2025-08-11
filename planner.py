@@ -640,26 +640,26 @@ def calculate_plan_value(plan_type):
     value = BASE_VISIT_VALUE
     
     # Add value for features
-    if features['visits_included'] != float('inf'):
-        value += features['visits_included'] * BASE_VISIT_VALUE
+    if features.get('visits_included', 0) != float('inf'):
+        value += features.get('visits_included', 0) * BASE_VISIT_VALUE
     
-    if features['guest_passes_annual']:
-        value += features['guest_passes_annual'] * GUEST_PRICE
+    if features.get('guest_passes_annual'):
+        value += features.get('guest_passes_annual', 0) * GUEST_PRICE
     
-    if features['event_hosting']:
+    if features.get('event_hosting'):
         value += MIXED_VALUE * 12  # Annual event value
     
-    if features['coworking_access']:
+    if features.get('coworking_access'):
         value += 200  # Annual coworking value
     
-    if features['24_7_access']:
+    if features.get('24_7_access', False):
         value += 500  # Annual 24/7 access value
     
-    if features['advance_booking_days']:
-        value += features['advance_booking_days'] * 2  # Value per day of advance booking
+    if features.get('advance_booking_days'):
+        value += features.get('advance_booking_days', 0) * 2  # Value per day of advance booking
     
-    if features['gift_memberships']:
-        value += features['gift_memberships'] * 100  # Value per gift membership
+    if features.get('gift_memberships'):
+        value += features.get('gift_memberships', 0) * 100  # Value per gift membership
     
     # Cap the base value
     value = min(value, BASE_VALUE_CAP * 12)  # Annual cap
@@ -681,37 +681,37 @@ def get_plan_features(plan_type):
     features = PLAN_FEATURES[plan_type]
     feature_list = []
     
-    if features['visits_included'] != float('inf'):
-        feature_list.append(f"{features['visits_included']} visits per year")
+    if features.get('visits_included', 0) != float('inf'):
+        feature_list.append(f"{features.get('visits_included')} visits per year")
     else:
         feature_list.append("Unlimited visits")
     
-    if features['guest_passes_annual']:
-        feature_list.append(f"{features['guest_passes_annual']} guest passes per year")
+    if features.get('guest_passes_annual'):
+        feature_list.append(f"{features.get('guest_passes_annual')} guest passes per year")
     
-    if features['guest_cost']:
-        feature_list.append(f"${features['guest_cost']} per additional guest")
+    if features.get('guest_cost'):
+        feature_list.append(f"${features.get('guest_cost')} per additional guest")
     
-    if features['weekday_only']:
+    if features.get('weekday_only'):
         feature_list.append("Weekday-only access (Mon-Thu)")
     
-    if features['event_hosting']:
+    if features.get('event_hosting'):
         feature_list.append("Host events")
     
-    if features['coworking_access']:
+    if features.get('coworking_access'):
         feature_list.append("Co-working space access")
     
-    if features['24_7_access']:
+    if features.get('24_7_access', False):
         feature_list.append("24/7 access")
     
-    if features['advance_booking_days']:
-        feature_list.append(f"{features['advance_booking_days']} days advance booking")
+    if features.get('advance_booking_days'):
+        feature_list.append(f"{features.get('advance_booking_days')} days advance booking")
     
-    if features['gift_memberships']:
-        feature_list.append(f"{features['gift_memberships']} gift memberships")
+    if features.get('gift_memberships'):
+        feature_list.append(f"{features.get('gift_memberships')} gift memberships")
     
-    if features['family_addon_monthly']:
-        feature_list.append(f"${features['family_addon_monthly']}/month family addon")
+    if features.get('family_addon_monthly'):
+        feature_list.append(f"${features.get('family_addon_monthly')}/month family addon")
     
     return feature_list
 

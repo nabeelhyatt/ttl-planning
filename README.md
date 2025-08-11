@@ -13,6 +13,22 @@ This project is a Python-based web application designed to model, analyze, and o
 *   **Plan Optimization**: Includes logic (`plan_optimizer.py`) to optimize plan pricing or features (details inferred).
 *   **Persona Optimization**: Analyzes plan value from the perspective of different customer personas (`persona_optimization.py`).
 *   **Revenue Planning**: Projects potential revenue based on membership plans and spending assumptions (`revenue_planner.py`).
+    - Membership revenue from different plan tiers
+    - Guest pass revenue beyond included passes
+    - Retail revenue from members
+    - Snack/beverage revenue per visit
+    - Setup/onboarding fees from new members
+    - Non-member retail revenue
+*   **Expense Tracking**: Complete expense modeling (`expenses.py`) tracking:
+    - Payroll costs (salaries and hourly wages)
+    - Facility costs (rent, utilities, insurance, supplies)
+    - Software subscriptions
+*   **Financial Dashboard**: Comprehensive P&L view (`financial_dashboard.py`) including:
+    - Monthly and annual profit/loss statements
+    - Revenue breakdown by source with percentages
+    - Expense breakdown by category with percentages
+    - Break-even analysis
+    - Profitability metrics
 *   **Web Interface**: Provides a basic web UI (via Flask and `templates/index.html`) to display analysis results and potentially configure parameters.
 
 ## Project Structure
@@ -28,8 +44,12 @@ This project is a Python-based web application designed to model, analyze, and o
 ├── planner.py             # Core logic: capacity, demand, personas, value constants, PuLP modeling
 ├── plan_optimizer.py      # Logic for optimizing membership plans based on value
 ├── persona_optimization.py # Logic for analyzing plan suitability per persona
-├── revenue_planner.py     # Logic for calculating revenue projections
+├── revenue_planner.py     # Logic for calculating revenue projections (all revenue streams)
 ├── value_calculator.py    # Calculates the perceived value of plans for specific personas
+├── expenses.py            # Expense tracking for payroll, facilities, and software
+├── financial_dashboard.py # P&L calculations, break-even analysis, profitability metrics
+├── analyze_excel.py       # Utility to extract formulas and structure from Excel files
+├── project_plan.md        # Implementation plan for financial enhancements
 ├── requirements.txt       # Python package dependencies
 ├── journey.md             # Log of development sprints, tasks, and todos
 ├── work-log.md            # Detailed log of code changes per session
