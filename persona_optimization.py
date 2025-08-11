@@ -26,14 +26,14 @@ class PersonaOptimizer:
             
             # Get trait descriptions
             trait_list = []
-            if persona_data['reserved_visits'] > 0:
-                trait_list.append(f"{persona_data['reserved_visits']} reserved visits per month")
-            if persona_data['event_visits'] > 0:
-                trait_list.append(f"{persona_data['event_visits']} event visits per month")
-            if persona_data['guests_per_month'] > 0:
-                trait_list.append(f"{persona_data['guests_per_month']} guests per month")
-            if persona_data['game_checkouts'] > 0:
-                trait_list.append(f"{persona_data['game_checkouts']} game checkouts per month")
+            if persona_data['reserved_visits_annual'] > 0:
+                trait_list.append(f"{persona_data['reserved_visits_annual']/12:.1f} reserved visits per month")
+            if persona_data['event_visits_annual'] > 0:
+                trait_list.append(f"{persona_data['event_visits_annual']/12:.1f} event visits per month")
+            if persona_data['guests_per_year'] > 0:
+                trait_list.append(f"{persona_data['guests_per_year']/12:.1f} guests per month")
+            if persona_data['game_checkouts_annual'] > 0:
+                trait_list.append(f"{persona_data['game_checkouts_annual']/12:.1f} game checkouts per month")
             
             optimized_personas.append({
                 'persona_type': persona_type,

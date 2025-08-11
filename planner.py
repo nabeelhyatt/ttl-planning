@@ -243,33 +243,34 @@ def compute_demands(M):
         persona = personas[persona_type]
         
         # Calculate total monthly reserved blocks (1 visit = 1 block)
-        monthly_reserved_visits = member_count * persona['reserved_visits']
+        monthly_reserved_visits = member_count * persona['reserved_visits_annual'] / 12
         monthly_reserved_blocks = monthly_reserved_visits  # Each visit takes one block
 
         # Calculate monthly mixed visits and blocks
-        monthly_event_visits = member_count * persona['event_visits']
+        monthly_event_visits = member_count * persona['event_visits_annual'] / 12
         monthly_event_blocks = monthly_event_visits  # Each event visit takes one block
 
         print(f"\n{persona_type.title()}:")
         print(f"  Members: {member_count}")
-        print(f"  Reserved visits per month: {monthly_reserved_visits}")
-        print(f"  Event visits per month: {monthly_event_visits}")
-        print(f"  Monthly blocks needed: {monthly_reserved_blocks + monthly_event_blocks}")
-        print(f"  Group size (member + {persona['guests_per_month']} guests): {1 + persona['guests_per_month']}")
+        print(f"  Reserved visits per month: {monthly_reserved_visits:.1f}")
+        print(f"  Event visits per month: {monthly_event_visits:.1f}")
+        print(f"  Monthly blocks needed: {monthly_reserved_blocks + monthly_event_blocks:.1f}")
+        print(f"  Group size (member + {persona['guests_per_year']/12:.1f} guests): {1 + persona['guests_per_year']/12:.1f}")
 
         # Determine table blocks needed based on group size
-        if 1 + persona['guests_per_month'] <= 2:
+        group_size = 1 + persona['guests_per_year'] / 12
+        if group_size <= 2:
             monthly_demands['reserved_2_blocks'] += monthly_reserved_blocks
-            print(f"  → Needs {monthly_reserved_blocks} 2-top blocks")
-        elif 1 + persona['guests_per_month'] <= 4:
+            print(f"  → Needs {monthly_reserved_blocks:.1f} 2-top blocks")
+        elif group_size <= 4:
             monthly_demands['reserved_4_blocks'] += monthly_reserved_blocks
-            print(f"  → Needs {monthly_reserved_blocks} 4-top blocks")
-        elif 1 + persona['guests_per_month'] <= 6:
+            print(f"  → Needs {monthly_reserved_blocks:.1f} 4-top blocks")
+        elif group_size <= 6:
             monthly_demands['reserved_6_blocks'] += monthly_reserved_blocks
-            print(f"  → Needs {monthly_reserved_blocks} 6-top blocks")
+            print(f"  → Needs {monthly_reserved_blocks:.1f} 6-top blocks")
         else:  # group_size <= 8
             monthly_demands['reserved_8_blocks'] += monthly_reserved_blocks
-            print(f"  → Needs {monthly_reserved_blocks} 8-top blocks")
+            print(f"  → Needs {monthly_reserved_blocks:.1f} 8-top blocks")
         
         # Calculate mixed seating demand (1 seat per person, no guests)
         monthly_mixed_blocks = monthly_event_visits  # Each event visit takes one block
@@ -278,10 +279,10 @@ def compute_demands(M):
         
         # Store per-persona demands
         monthly_demands['type_demands'][persona_type] = {
-            'reserved_8_blocks': monthly_reserved_blocks if 1 + persona['guests_per_month'] > 6 else 0,
-            'reserved_6_blocks': monthly_reserved_blocks if 4 < 1 + persona['guests_per_month'] <= 6 else 0,
-            'reserved_4_blocks': monthly_reserved_blocks if 2 < 1 + persona['guests_per_month'] <= 4 else 0,
-            'reserved_2_blocks': monthly_reserved_blocks if 1 + persona['guests_per_month'] <= 2 else 0,
+            'reserved_8_blocks': monthly_reserved_blocks if group_size > 6 else 0,
+            'reserved_6_blocks': monthly_reserved_blocks if 4 < group_size <= 6 else 0,
+            'reserved_4_blocks': monthly_reserved_blocks if 2 < group_size <= 4 else 0,
+            'reserved_2_blocks': monthly_reserved_blocks if group_size <= 2 else 0,
             'mixed_seat_blocks': monthly_mixed_blocks
         }
     
