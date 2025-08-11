@@ -9,72 +9,103 @@ class ValueCalculator:
         self.personas = {}
         for persona_type, data in planner.PERSONAS.items():
             self.personas[persona_type] = {
-                "visits_per_month": data['reserved_visits'] + data['event_visits'],
+                "visits_per_year": data['reserved_visits_annual'] + data['event_visits_annual'],
                 "price_per_visit": data['price'],
-                "guests_per_month": data['guests_per_month'],
-                "game_checkouts": data['game_checkouts']
+                "guests_per_year": data['guests_per_year'],
+                "game_checkouts_annual": data['game_checkouts_annual'],
+                "weekday_preference": data['weekday_preference'],
+                "coworking_hours": data['coworking_hours'],
+                "advance_booking_needs": data['advance_booking_needs']
             }
 
     def calculate_persona_value(self, plan_features, persona_type, debug_output=None):
-        """Calculate the value of a plan for a specific persona."""
+        """Calculate the annual value of a plan for a specific persona."""
         traits = self.personas[persona_type]
         
         # 1. Base value from visits
-        # Their value per visit * number of visits they plan to make
-        visit_value = traits["visits_per_month"] * traits["price_per_visit"]
+        if plan_features['visits_included'] != float('inf'):
+            # For limited visit plans, calculate value of included visits
+            visit_value = min(plan_features['visits_included'], traits["visits_per_year"]) * traits["price_per_visit"]
+            # Add value for any overage visits
+            if traits["visits_per_year"] > plan_features['visits_included']:
+                visit_value += (traits["visits_per_year"] - plan_features['visits_included']) * plan_features['additional_visit_cost']
+        else:
+            # For unlimited plans, calculate full value of their visits
+            visit_value = traits["visits_per_year"] * traits["price_per_visit"]
         
         # 2. Value from guest passes
-        # They value guest passes at 75% of their own visit value (25% discount)
-        guest_pass_value = traits["price_per_visit"] * 0.75
-        # Only count guest passes up to their monthly guest count
-        guest_value = min(plan_features["guest_passes"], traits["guests_per_month"]) * guest_pass_value
+        if plan_features['guest_passes_annual']:
+            # Calculate value of guest passes up to their annual guest count
+            guest_pass_value = min(plan_features['guest_passes_annual'], traits["guests_per_year"]) * traits["price_per_visit"]
+            # Add value for any additional guests
+            if traits["guests_per_year"] > plan_features['guest_passes_annual']:
+                guest_pass_value += (traits["guests_per_year"] - plan_features['guest_passes_annual']) * plan_features['additional_guest_cost']
+        else:
+            # For plans with per-guest pricing
+            guest_pass_value = traits["guests_per_year"] * plan_features['guest_cost']
         
-        # 3. Value from retail discounts
-        # Assume they spend about their visit value on retail per month
-        monthly_retail_spend = traits["visits_per_month"] * traits["price_per_visit"]
-        retail_discount_value = monthly_retail_spend * plan_features["retail_discount"]
+        # 3. Value from weekday restrictions
+        weekday_value = 0
+        if plan_features['weekday_only']:
+            # Calculate penalty for weekday-only restriction
+            weekend_visits = traits["visits_per_year"] * (1 - traits["weekday_preference"])
+            weekday_value = -weekend_visits * traits["price_per_visit"] * 0.5  # 50% penalty for lost weekend visits
         
-        # 4. Value from game checkouts (up to their monthly checkout count)
-        game_value = min(plan_features["game_checkouts"], traits["game_checkouts"]) * planner.GAME_CHECKOUT_VALUE
+        # 4. Value from coworking access
+        coworking_value = 0
+        if plan_features['coworking_access']:
+            coworking_value = traits["coworking_hours"] * 10  # $10/hour value for coworking
         
-        # 5. Value from additional members
-        # For family plan, value additional members at 75% instead of 50%
-        member_discount = 0.75 if plan_features.get("additional_members", 0) >= 3 else 0.5
-        additional_member_value = (
-            plan_features["additional_members"] * 
-            (traits["visits_per_month"] * traits["price_per_visit"]) * 
-            member_discount
-        )
+        # 5. Value from 24/7 access
+        access_value = 0
+        if plan_features['24_7_access']:
+            access_value = 500  # Annual value of 24/7 access
         
-        # 6. Value from event access
-        event_value = (getattr(planner, 'EVENT_VALUE', None) or planner.MIXED_VALUE) if plan_features["mixed_access"] else 0
+        # 6. Value from advance booking
+        booking_value = 0
+        if plan_features['advance_booking_days']:
+            booking_value = min(plan_features['advance_booking_days'], traits["advance_booking_needs"]) * 2  # $2 per day of advance booking
+        
+        # 7. Value from gift memberships
+        gift_value = 0
+        if plan_features['gift_memberships']:
+            gift_value = plan_features['gift_memberships'] * 100  # $100 value per gift membership
+        
+        # 8. Value from family addon
+        family_value = 0
+        if plan_features['family_addon_monthly']:
+            family_value = plan_features['family_addon_monthly'] * 12  # Annual value of family addon
         
         # Store debug output if requested
-        if debug_output is not None and persona_type == 'families':
+        if debug_output is not None:
             debug_output.append({
                 "visit_value": visit_value,
-                "guest_value": guest_value,
-                "retail_discount": retail_discount_value,
-                "game_value": game_value,
-                "additional_member_value": additional_member_value,
-                "event_value": event_value,
-                "total_value": visit_value + guest_value + retail_discount_value + game_value + additional_member_value + event_value
+                "guest_value": guest_pass_value,
+                "weekday_value": weekday_value,
+                "coworking_value": coworking_value,
+                "access_value": access_value,
+                "booking_value": booking_value,
+                "gift_value": gift_value,
+                "family_value": family_value,
+                "total_value": visit_value + guest_pass_value + weekday_value + coworking_value + access_value + booking_value + gift_value + family_value
             })
         
-        # Total monthly value is sum of all components
-        monthly_value = (
-            visit_value +              # Value from their own visits
-            guest_value +              # Value from guest passes
-            retail_discount_value +    # Value from retail discounts
-            game_value +               # Value from game checkouts
-            additional_member_value +  # Value from additional members
-            event_value                # Value from event access
+        # Total annual value is sum of all components
+        annual_value = (
+            visit_value +          # Value from visits
+            guest_pass_value +     # Value from guest passes
+            weekday_value +        # Value/penalty from weekday restrictions
+            coworking_value +      # Value from coworking access
+            access_value +         # Value from 24/7 access
+            booking_value +        # Value from advance booking
+            gift_value +           # Value from gift memberships
+            family_value           # Value from family addon
         )
         
-        return monthly_value
+        return annual_value
 
     def calculate_value_ratio(self, persona_type, plan_type):
-        """Calculate value ratio for a persona-plan pair."""
+        """Calculate the value ratio for a specific persona and plan type."""
         plan_data = planner.calculate_plan_value(plan_type)
         value = self.calculate_persona_value(plan_data["features"], persona_type)
         return value / plan_data["price"]

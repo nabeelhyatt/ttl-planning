@@ -12,7 +12,7 @@ class PlanOptimizer:
         """Analyze plans and return optimization results."""
         optimized_plans = []
         
-        for plan_type in ['basic', 'standard', 'family']:
+        for plan_type in ['visitor', 'student', 'member', 'council']:
             # Get fresh plan data
             plan_data = planner.calculate_plan_value(plan_type)
             
@@ -28,14 +28,7 @@ class PlanOptimizer:
             ]
             
             # Get feature descriptions
-            feature_list = []
-            features = plan_data['features']
-            if features['guest_passes'] > 0:
-                feature_list.append(f"{features['guest_passes']} guest passes per month")
-            if features['mixed_access']:
-                feature_list.append("Access to mixed events")
-            if features['game_checkouts'] > 0:
-                feature_list.append(f"{features['game_checkouts']} game checkouts per month")
+            feature_list = planner.get_plan_features(plan_type)
             
             optimized_plans.append({
                 'plan_type': plan_type,
@@ -54,7 +47,7 @@ class PlanOptimizer:
         debug_info = []
         for persona in planner.PERSONAS.keys():
             value_ratios[persona] = {}
-            for plan_type in ["basic", "standard", "family"]:
+            for plan_type in ["visitor", "student", "member", "council"]:
                 plan_data = planner.calculate_plan_value(plan_type)
                 value = self.value_calculator.calculate_persona_value(plan_data["features"], persona, debug_info if persona == "families" else None)
                 value_ratios[persona][plan_type] = value / plan_data["price"]
@@ -66,11 +59,11 @@ class PlanOptimizer:
         # Print summary of which personas have each plan in their top 2 choices
         print("Most Likely Plan Selections:")
         print("------------------------------")
-        for plan_type in ["basic", "standard", "family"]:
+        for plan_type in ["visitor", "student", "member", "council"]:
             top_picks = []
             for persona in planner.PERSONAS.keys():
                 # Get this plan's rank for this persona
-                persona_ratios = [(p, value_ratios[persona][p]) for p in ["basic", "standard", "family"]]
+                persona_ratios = [(p, value_ratios[persona][p]) for p in ["visitor", "student", "member", "council"]]
                 persona_ratios.sort(key=lambda x: x[1], reverse=True)
                 if plan_type in [p for p, _ in persona_ratios[:2]]:
                     top_picks.append(f"{persona.capitalize()} ({value_ratios[persona][plan_type]:.2f}x)")
@@ -85,13 +78,13 @@ class PlanOptimizer:
         print("==================================================\n")
 
         # For each plan type
-        for plan_type in ["basic", "standard", "family"]:
+        for plan_type in ["visitor", "student", "member", "council"]:
             print(f"{plan_type.capitalize()} Plan")
             print("-" * 20)
             
             # Get plan data
             plan_data = planner.calculate_plan_value(plan_type)
-            print(f"Price: ${plan_data['price']}\n")
+            print(f"Price: ${plan_data['price']}/year\n")
             
             # Print value ratios for each persona
             print("Value Ratios by Persona:")
@@ -103,7 +96,7 @@ class PlanOptimizer:
             print("\nBest For:")
             for persona in planner.PERSONAS.keys():
                 # Get this plan's rank for this persona
-                persona_ratios = [(p, value_ratios[persona][p]) for p in ["basic", "standard", "family"]]
+                persona_ratios = [(p, value_ratios[persona][p]) for p in ["visitor", "student", "member", "council"]]
                 persona_ratios.sort(key=lambda x: x[1], reverse=True)
                 if plan_type in [p for p, _ in persona_ratios[:2]]:
                     print(f"  - {persona.capitalize()}")
@@ -122,15 +115,17 @@ class PlanOptimizer:
         
         # Print collected debug info
         for i, debug_data in enumerate(debug_info):
-            plan_type = ["Basic", "Standard", "Family"][i]
+            plan_type = ["Visitor", "Student", "Member", "Council"][i]
             print(f"\n{plan_type} Plan Value Calculation:")
             print("-" * 40)
             print(f"Visit value: {debug_data['visit_value']}")
             print(f"Guest value: {debug_data['guest_value']}")
-            print(f"Retail discount: {debug_data['retail_discount']}")
-            print(f"Game value: {debug_data['game_value']}")
-            print(f"Additional member value: {debug_data['additional_member_value']}")
-            print(f"Event value: {debug_data['event_value']}")
+            print(f"Weekday value: {debug_data['weekday_value']}")
+            print(f"Coworking value: {debug_data['coworking_value']}")
+            print(f"Access value: {debug_data['access_value']}")
+            print(f"Booking value: {debug_data['booking_value']}")
+            print(f"Gift value: {debug_data['gift_value']}")
+            print(f"Family value: {debug_data['family_value']}")
             print(f"Total value: {debug_data['total_value']}")
 
 def analyze_and_recommend_plans():

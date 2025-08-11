@@ -35,12 +35,7 @@ This project is a Python-based web application designed to model, analyze, and o
 ├── work-log.md            # Detailed log of code changes per session
 ├── README.md              # This file
 ├── OBG_Members_Processed.csv # Processed member data (output of utility script)
-├── process_members.py     # Utility script: Parses 'OBG Members.txt' into CSV
-├── analyze_frequencies.py # Utility script: Analyzes visit frequency data from CSV
-└── test_planner.py        # Utility script: Basic tests for planner.py's demand calculation
 ```
-
-*Note: Utility scripts (`process_members.py`, `analyze_frequencies.py`, `test_planner.py`) are for data preparation and development testing, not part of the core web application runtime. The persona definitions in `planner.py` may have been informed by analyzing data processed by these scripts (e.g., from an original `OBG Members.txt` file, not included in repo).* 
 
 ## Key Technologies
 
@@ -114,8 +109,6 @@ This application is deployed on [Zeabur](https://zeabur.com), a cloud platform t
    flask-cors==4.0.0
    pulp==2.7.0
    gunicorn==21.2.0
-   pandas==2.1.4
-   numpy==1.26.3
    python-dotenv==1.0.0
    ```
 
@@ -160,7 +153,6 @@ The `/api/config` endpoint requires HTTP Basic Authentication. The frontend uses
 
 Common issues and solutions:
 
-- **"Hello from ttl-planning!" loops**: Remove any test files (like `main.py`) that might be detected as the main entrypoint
 - **Empty Setup page fields**: Check that API requests use relative URLs, not hardcoded localhost
 - **Authentication errors**: Verify the `authenticatedFetch()` function includes proper headers
 - **Port binding errors**: Ensure the Procfile uses `$PORT` environment variable
@@ -177,9 +169,9 @@ Key operational parameters and model assumptions (e.g., table counts, operating 
 
 The `app.py` file includes an `/api/config` endpoint, which currently requires basic authentication (credentials hardcoded in `app.py` - **suitable for development only**), to potentially expose *some* configuration values, but it doesn't override the core constants embedded in the modules.
 
-**Important:** Only the `/api/config` endpoint requires authentication. Other API endpoints like `/api/planner`, `/api/optimizer`, `/api/personas`, `/api/revenue`, and `/api/constants` do **not** require authentication.
+**Important:** All API endpoints, including `/api/config`, are now public and do **not** require authentication. Do not use `/api/config` for sensitive data in production environments.
 
-**Note on CORS and Authentication:** When using Flask-CORS with authenticated routes (like `/api/config`), the `@cross_origin(supports_credentials=True)` decorator must be placed *before* the `@requires_auth` decorator in `app.py`. This ensures the CORS preflight (`OPTIONS`) request is handled correctly before the authentication check occurs.
+**Note on CORS:** When using Flask-CORS, the `@cross_origin(supports_credentials=True)` decorator must be placed before the route function in `app.py`.
 
 ## Model Assumptions
 

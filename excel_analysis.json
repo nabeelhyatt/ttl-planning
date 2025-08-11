@@ -1,0 +1,343 @@
+{
+  "Overview": {
+    "dimensions": {
+      "rows": 999,
+      "cols": 9
+    },
+    "formula_count": 26,
+    "columns": [
+      "Revenue",
+      "Per Month",
+      "% of Revenue",
+      "Unnamed: 3",
+      "Unnamed: 4",
+      "Unnamed: 5",
+      "Unnamed: 6",
+      "Key Numbers",
+      "Unnamed: 8"
+    ],
+    "key_cells": {
+      "A1": "Revenue",
+      "B1": "Per Month",
+      "C1": "% of Revenue",
+      "H1": "Key Numbers",
+      "A2": "Membership",
+      "B2": "=Membership!A1",
+      "C2": "=B2/$B$9",
+      "H2": "Total Members",
+      "I2": "=Membership!D5",
+      "A3": "Guest Passes",
+      "B3": "='Visit Add-ons'!B35",
+      "C3": "=B3/$B$9",
+      "A4": "Setup Fees",
+      "B4": "='Visit Add-ons'!B28",
+      "C4": "=B4/$B$9",
+      "A5": "Retail",
+      "B5": "=Retail!A1",
+      "C5": "=B5/$B$9"
+    },
+    "sample_formulas": {
+      "B2": {
+        "formula": "=Membership!A1",
+        "value": 25000
+      },
+      "C2": {
+        "formula": "=B2/$B$9",
+        "value": 0.7173601148
+      },
+      "I2": {
+        "formula": "=Membership!D5",
+        "value": 200
+      },
+      "B3": {
+        "formula": "='Visit Add-ons'!B35",
+        "value": 500
+      },
+      "C3": {
+        "formula": "=B3/$B$9",
+        "value": 0.0143472023
+      },
+      "B4": {
+        "formula": "='Visit Add-ons'!B28",
+        "value": 1000
+      },
+      "C4": {
+        "formula": "=B4/$B$9",
+        "value": 0.02869440459
+      },
+      "B5": {
+        "formula": "=Retail!A1",
+        "value": 4400
+      },
+      "C5": {
+        "formula": "=B5/$B$9",
+        "value": 0.1262553802
+      },
+      "B6": {
+        "formula": "='Visit Add-ons'!B19",
+        "value": 1950
+      }
+    }
+  },
+  "REVENUE": {
+    "dimensions": {
+      "rows": 1,
+      "cols": 1
+    },
+    "formula_count": 0,
+    "columns": [],
+    "key_cells": {},
+    "sample_formulas": {}
+  },
+  "Membership": {
+    "dimensions": {
+      "rows": 1000,
+      "cols": 5
+    },
+    "formula_count": 6,
+    "columns": [
+      25000,
+      "Unnamed: 1",
+      "Unnamed: 2",
+      "Unnamed: 3",
+      "Unnamed: 4"
+    ],
+    "key_cells": {
+      "A1": "=SUM(E:E)",
+      "A4": "Memberships",
+      "B4": "Unit Price",
+      "D4": "Count",
+      "E4": "Total",
+      "A5": "Standard",
+      "E5": "=B5*D5"
+    },
+    "sample_formulas": {
+      "A1": {
+        "formula": "=SUM(E:E)",
+        "value": 25000
+      },
+      "E5": {
+        "formula": "=B5*D5",
+        "value": 15000
+      },
+      "D11": {
+        "formula": "=D5*C11",
+        "value": 40
+      },
+      "E11": {
+        "formula": "=B11*D11",
+        "value": 3000
+      },
+      "D12": {
+        "formula": "=D5*C12",
+        "value": 20
+      },
+      "E12": {
+        "formula": "=B12*D12",
+        "value": 7000
+      }
+    }
+  },
+  "Visit Add-ons": {
+    "dimensions": {
+      "rows": 35,
+      "cols": 3
+    },
+    "formula_count": 12,
+    "columns": [
+      "Unnamed: 0",
+      "Unnamed: 1",
+      "Unnamed: 2"
+    ],
+    "key_cells": {
+      "A4": "Visit-based revenue",
+      "B4": "Per Member",
+      "C4": "All Members",
+      "A5": "Visits / Member / Month",
+      "C5": "=B5*Membership!D5"
+    },
+    "sample_formulas": {
+      "C5": {
+        "formula": "=B5*Membership!D5",
+        "value": 600
+      },
+      "C6": {
+        "formula": "=B6*Membership!D11",
+        "value": 400
+      },
+      "C7": {
+        "formula": "=B7*Membership!D12",
+        "value": 300
+      },
+      "B8": {
+        "formula": "=SUM(B5:B7)",
+        "value": 28
+      },
+      "C8": {
+        "formula": "=SUM(C5:C7)",
+        "value": 1300
+      },
+      "B16": {
+        "formula": "=B14*B15",
+        "value": 7.5
+      },
+      "B18": {
+        "formula": "=B17*C8",
+        "value": 260
+      },
+      "B19": {
+        "formula": "=B18*B16",
+        "value": 1950
+      },
+      "B26": {
+        "formula": "=C5+C6",
+        "value": 1000
+      },
+      "B28": {
+        "formula": "=B25*B26*B27",
+        "value": 1000
+      }
+    }
+  },
+  "Retail": {
+    "dimensions": {
+      "rows": 22,
+      "cols": 2
+    },
+    "formula_count": 8,
+    "columns": [
+      4400,
+      "Unnamed: 1"
+    ],
+    "key_cells": {
+      "A1": "=B15+B22"
+    },
+    "sample_formulas": {
+      "A1": {
+        "formula": "=B15+B22",
+        "value": 4400
+      },
+      "B9": {
+        "formula": "=B7*B8",
+        "value": 20
+      },
+      "B12": {
+        "formula": "=Membership!D5",
+        "value": 200
+      },
+      "B14": {
+        "formula": "=B12*B13",
+        "value": 100
+      },
+      "B15": {
+        "formula": "=B14*B9",
+        "value": 2000
+      },
+      "B19": {
+        "formula": "=B18*30",
+        "value": 600
+      },
+      "B21": {
+        "formula": "=B19*B20",
+        "value": 120
+      },
+      "B22": {
+        "formula": "=B21*B9",
+        "value": 2400
+      }
+    }
+  },
+  "EXPENSES": {
+    "dimensions": {
+      "rows": 1,
+      "cols": 1
+    },
+    "formula_count": 0,
+    "columns": [],
+    "key_cells": {},
+    "sample_formulas": {}
+  },
+  "Payroll": {
+    "dimensions": {
+      "rows": 21,
+      "cols": 2
+    },
+    "formula_count": 5,
+    "columns": [
+      26825,
+      "Unnamed: 1"
+    ],
+    "key_cells": {
+      "A1": "=B13+B21"
+    },
+    "sample_formulas": {
+      "A1": {
+        "formula": "=B13+B21",
+        "value": 26825
+      },
+      "B13": {
+        "formula": "=SUM(B11:B12)/12",
+        "value": 20000
+      },
+      "B19": {
+        "formula": "=(B17*5)+(B18*2)",
+        "value": 65
+      },
+      "B20": {
+        "formula": "=(B19/7)*30",
+        "value": 278.5714286
+      },
+      "B21": {
+        "formula": "=B20*B16",
+        "value": 6825
+      }
+    }
+  },
+  "Facilities": {
+    "dimensions": {
+      "rows": 1000,
+      "cols": 2
+    },
+    "formula_count": 2,
+    "columns": [
+      10359,
+      "Unnamed: 1"
+    ],
+    "key_cells": {
+      "A1": "=SUM(B5:B15)+B23",
+      "A5": "Rent"
+    },
+    "sample_formulas": {
+      "A1": {
+        "formula": "=SUM(B5:B15)+B23",
+        "value": 10359
+      },
+      "B23": {
+        "formula": "=B20*(B21+B21)",
+        "value": 1000
+      }
+    }
+  },
+  "Software": {
+    "dimensions": {
+      "rows": 1000,
+      "cols": 2
+    },
+    "formula_count": 1,
+    "columns": [
+      1735.99,
+      "Unnamed: 1"
+    ],
+    "key_cells": {
+      "A1": "=SUM(B:B)",
+      "A4": "Mail Chimp",
+      "A5": "Twilio"
+    },
+    "sample_formulas": {
+      "A1": {
+        "formula": "=SUM(B:B)",
+        "value": 1735.99
+      }
+    }
+  }
+}

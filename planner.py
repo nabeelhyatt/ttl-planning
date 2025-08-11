@@ -4,6 +4,10 @@
 import pulp
 import math
 
+# Time constants
+WEEKS_PER_YEAR = 52
+MONTHS_PER_YEAR = 12
+
 # Table capacity constants
 NUM_4_TOP = 8  # Number of 4-top tables (can split into 2x2)
 NUM_8_TOP = 3  # Number of 8-top tables (can split into 4+2)
@@ -24,12 +28,19 @@ WEEKEND_BLOCKS = 9  # ~4.67 blocks/day * 2 days
 # Weekends: 9AM-11PM (4 blocks/day * 2 days = 8 blocks/week)
 # Total: ~82 blocks/month
 TIME_BLOCKS_PER_MONTH = int((WEEKDAY_BLOCKS + WEEKEND_BLOCKS) * 4.33)  # ~82 blocks/month
+TIME_BLOCKS_PER_YEAR = TIME_BLOCKS_PER_MONTH * MONTHS_PER_YEAR  # ~984 blocks/year
 
 # Total monthly table capacity
 MONTHLY_4_TOP_BLOCKS = NUM_4_TOP * TIME_BLOCKS_PER_MONTH  # 8 * 82 = 656 blocks
 MONTHLY_8_TOP_BLOCKS = NUM_8_TOP * TIME_BLOCKS_PER_MONTH  # 3 * 82 = 246 blocks
 MONTHLY_6_TOP_BLOCKS = NUM_6_TOP * TIME_BLOCKS_PER_MONTH  # 2 * 82 = 164 blocks
 MONTHLY_2_TOP_BLOCKS = NUM_2_TOP * TIME_BLOCKS_PER_MONTH  # 2 * 82 = 164 blocks
+
+# Total annual table capacity
+ANNUAL_4_TOP_BLOCKS = NUM_4_TOP * TIME_BLOCKS_PER_YEAR  # 8 * 984 = 7,872 blocks
+ANNUAL_8_TOP_BLOCKS = NUM_8_TOP * TIME_BLOCKS_PER_YEAR  # 3 * 984 = 2,952 blocks
+ANNUAL_6_TOP_BLOCKS = NUM_6_TOP * TIME_BLOCKS_PER_YEAR  # 2 * 984 = 1,968 blocks
+ANNUAL_2_TOP_BLOCKS = NUM_2_TOP * TIME_BLOCKS_PER_YEAR  # 2 * 984 = 1,968 blocks
 
 # Revenue constants
 GUEST_PRICE = 8  # Price per guest
@@ -39,13 +50,66 @@ MIXED_VALUE = 12  # Value of mixed event entry
 GAME_CHECKOUT_VALUE = 5  # Value of checking out a game
 BASE_VALUE_CAP = 100  # Cap on base visit value
 
-# Plan prices
-BASIC_PLAN_PRICE = 35
-STANDARD_PLAN_PRICE = 75
-FAMILY_PLAN_PRICE = 125
+# Plan prices (annual)
+VISITOR_PLAN_PRICE = 200
+STUDENT_PLAN_PRICE = 100
+MEMBER_PLAN_PRICE = 740
+COUNCIL_PLAN_PRICE = 1800
 
-# Value of additional member is tied to standard plan price
-ADDITIONAL_MEMBER_VALUE = STANDARD_PLAN_PRICE
+# Plan features
+PLAN_FEATURES = {
+    'visitor': {
+        'visits_included': 7,
+        'guests_per_visit': 3,
+        'guest_passes_annual': 18,
+        'additional_visit_cost': 12,
+        'additional_guest_cost': 12,
+        'unlimited_visits': False,
+        'weekday_only': False,
+        'event_hosting': False,
+        'coworking_access': False,
+        'advance_booking_days': 0
+    },
+    'student': {
+        'visits_included': float('inf'),
+        'guest_cost': 10,
+        'unlimited_visits': True,
+        'weekday_only': True,
+        'event_hosting': False,
+        'coworking_access': False,
+        'advance_booking_days': 0
+    },
+    'member': {
+        'visits_included': float('inf'),
+        'guest_passes_monthly': 5,
+        'guest_passes_annual': 60,
+        'additional_guest_cost': 10,
+        'family_addon_monthly': 75,
+        'unlimited_visits': True,
+        'weekday_only': False,
+        'event_hosting': True,
+        'coworking_access': False,
+        'advance_booking_days': 7,
+        'gift_memberships': 3
+    },
+    'council': {
+        'visits_included': float('inf'),
+        'guest_passes_monthly': 8,
+        'guest_passes_annual': 96,
+        'additional_guest_cost': 10,
+        'family_addon_monthly': 75,
+        'unlimited_visits': True,
+        'weekday_only': False,
+        'event_hosting': True,
+        'coworking_access': True,
+        '24_7_access': True,
+        'advance_booking_days': 30,
+        'gift_memberships': 3
+    }
+}
+
+# Value of additional member is tied to member plan price
+ADDITIONAL_MEMBER_VALUE = MEMBER_PLAN_PRICE
 
 # Guest spending multiplier (guests spend X times what members spend)
 GUEST_SPENDING_MULTIPLIER = 1  # Guests tend to spend a bit more
@@ -59,58 +123,73 @@ PERSONA_DISTRIBUTION = {
     'everyday': 0.05   # 10% everyday players
 }
 
-# Persona prices, guests, and visit mixes
+# Persona prices, guests, and visit mixes (annual)
 PERSONAS = {
     'casual': {
         'price': 8,   # price willing to pay per visit
-        'guests_per_month': 3,   # Assumes 2 guests on average for a 4-top
-        'reserved_visits': 1,       # visits/month
-        'event_visits': .5,        # event visits/month
-        'game_checkouts': 0,          # 1 game checkout per month
-        'avg_group_size': 4
+        'guests_per_year': 36,   # 3 guests/month * 12 months
+        'reserved_visits_annual': 12,       # 1 visit/month * 12 months
+        'event_visits_annual': 6,        # 0.5 event visits/month * 12 months
+        'game_checkouts_annual': 0,          # 0 game checkouts per month * 12 months
+        'avg_group_size': 4,
+        'weekday_preference': 0.3,  # 30% weekday visits
+        'coworking_hours': 0,
+        'advance_booking_needs': 0
     },
     'students': {
         'price': 5,   # price willing to pay per visit
-        'guests_per_month': 3,   # Assumes 3 guests for a 4-top
-        'reserved_visits': 8,       # visits/month
-        'event_visits': 1,          # event visits/month
-        'game_checkouts': 1,          # 1 game checkout per month
-        'avg_group_size': 3
+        'guests_per_year': 36,   # 3 guests/month * 12 months
+        'reserved_visits_annual': 96,       # 8 visits/month * 12 months
+        'event_visits_annual': 12,          # 1 event visit/month * 12 months
+        'game_checkouts_annual': 12,          # 1 game checkout per month * 12 months
+        'avg_group_size': 3,
+        'weekday_preference': 0.9,  # 90% weekday visits
+        'coworking_hours': 0,
+        'advance_booking_needs': 0
     },
     'families': {
         'price': 15,   # price willing to pay per visit
-        'guests_per_month': 2.5, # Average between solo parent (2 kids) and family visit (3 family)
-        'reserved_visits': 3,       # visits/month
-        'event_visits': 2,          # event visits/month
-        'game_checkouts': 1,          # 1 game checkout per month
-        'avg_group_size': 4
+        'guests_per_year': 30, # 2.5 guests/month * 12 months
+        'reserved_visits_annual': 36,       # 3 visits/month * 12 months
+        'event_visits_annual': 24,          # 2 event visits/month * 12 months
+        'game_checkouts_annual': 12,          # 1 game checkout per month * 12 months
+        'avg_group_size': 4,
+        'weekday_preference': 0.4,  # 40% weekday visits
+        'coworking_hours': 0,
+        'advance_booking_needs': 0
     },
     'hobbyists': {
         'price': 10,   # price willing to pay per visit
-        'guests_per_month': 3,   # Assumes 3 guests for a 4-top
-        'reserved_visits': 4,       # visits/month
-        'event_visits': 2,          # event visits/month
-        'game_checkouts': 2,          # 2 game checkouts per month
-        'avg_group_size': 4
+        'guests_per_year': 36,   # 3 guests/month * 12 months
+        'reserved_visits_annual': 48,       # 4 visits/month * 12 months
+        'event_visits_annual': 24,          # 2 event visits/month * 12 months
+        'game_checkouts_annual': 24,          # 2 game checkouts per month * 12 months
+        'avg_group_size': 4,
+        'weekday_preference': 0.5,  # 50% weekday visits
+        'coworking_hours': 0,
+        'advance_booking_needs': 0
     },
     'everyday': {
         'price': 5,   # price willing to pay per visit
-        'guests_per_month': 3,   # Assumes 3 guests for a 4-top
-        'reserved_visits': 8,       # visits/month
-        'event_visits': 4,          # event visits/month
-        'game_checkouts': 2,          # 10 game checkouts per month
-        'avg_group_size': 4
+        'guests_per_year': 36,   # 3 guests/month * 12 months
+        'reserved_visits_annual': 96,       # 8 visits/month * 12 months
+        'event_visits_annual': 48,          # 4 event visits/month * 12 months
+        'game_checkouts_annual': 24,          # 2 game checkouts per month * 12 months
+        'avg_group_size': 4,
+        'weekday_preference': 0.6,  # 60% weekday visits
+        'coworking_hours': 0,
+        'advance_booking_needs': 0
     }
 }
 
-# Per-visit spending assumptions
+# Per-visit spending assumptions (annual)
 SPENDING = {
-    'retail_monthly': {  # Average retail spending per month
-        'casual': 0,     # No monthly retail
-        'students': 5,   # $5/month
-        'families': 10,  # $10/month
-        'hobbyists': 15, # $15/month
-        'everyday': 15   # $15/month
+    'retail_annual': {  # Average retail spending per year
+        'casual': 0,     # No monthly retail * 12
+        'students': 60,   # $5/month * 12
+        'families': 120,  # $10/month * 12
+        'hobbyists': 180, # $15/month * 12
+        'everyday': 180   # $15/month * 12
     },
     'snacks': {  # Average snack/drink spending per visit
         'casual': 10,    # $10/visit
@@ -541,87 +620,100 @@ def analyze_capacity(test_members=[200, 250, 300, 350, 400]):
 
 def calculate_plan_value(plan_type):
     """Calculate the value and features for a given plan type."""
-    if plan_type.lower() == "basic":
-        features = {
-            "guest_passes": 1,
-            "retail_discount": 0.1,  # 10%
-            "snack_discount": 0.1,   # 10%
-            "mixed_access": False,
-            "additional_members": 0,  # No additional members
-            "game_checkouts": 1
-        }
-        price = BASIC_PLAN_PRICE
-    elif plan_type.lower() == "standard":
-        features = {
-            "guest_passes": 2,
-            "retail_discount": 0.15,  # 15%
-            "snack_discount": 0.15,   # 15%
-            "mixed_access": True,
-            "additional_members": 1,  # One additional member
-            "game_checkouts": 2
-        }
-        price = STANDARD_PLAN_PRICE
-    elif plan_type.lower() == "family":
-        features = {
-            "guest_passes": 4,
-            "retail_discount": 0.2,   # 20%
-            "snack_discount": 0.2,    # 20%
-            "mixed_access": True,
-            "additional_members": 3,  # Three additional family members
-            "game_checkouts": 4
-        }
-        price = FAMILY_PLAN_PRICE
-    else:
+    plan_type = plan_type.lower()
+    if plan_type not in PLAN_FEATURES:
         raise ValueError(f"Invalid plan type: {plan_type}")
+    
+    features = PLAN_FEATURES[plan_type]
+    
+    # Get plan price
+    if plan_type == 'visitor':
+        price = VISITOR_PLAN_PRICE
+    elif plan_type == 'student':
+        price = STUDENT_PLAN_PRICE
+    elif plan_type == 'member':
+        price = MEMBER_PLAN_PRICE
+    elif plan_type == 'council':
+        price = COUNCIL_PLAN_PRICE
     
     # Calculate base value
     value = BASE_VISIT_VALUE
     
     # Add value for features
-    value += features["guest_passes"] * GUEST_PRICE
-    if features["mixed_access"]:
-        value += MIXED_VALUE
-    value += features["game_checkouts"] * GAME_CHECKOUT_VALUE
+    if features['visits_included'] != float('inf'):
+        value += features['visits_included'] * BASE_VISIT_VALUE
+    
+    if features['guest_passes_annual']:
+        value += features['guest_passes_annual'] * GUEST_PRICE
+    
+    if features['event_hosting']:
+        value += MIXED_VALUE * 12  # Annual event value
+    
+    if features['coworking_access']:
+        value += 200  # Annual coworking value
+    
+    if features['24_7_access']:
+        value += 500  # Annual 24/7 access value
+    
+    if features['advance_booking_days']:
+        value += features['advance_booking_days'] * 2  # Value per day of advance booking
+    
+    if features['gift_memberships']:
+        value += features['gift_memberships'] * 100  # Value per gift membership
     
     # Cap the base value
-    value = min(value, BASE_VALUE_CAP)
+    value = min(value, BASE_VALUE_CAP * 12)  # Annual cap
     
     return {
         "plan_type": plan_type,
         "price": float(price),
-        "monthly_value": float(value),
+        "annual_value": float(value),
         "value_ratio": float(value / price),
         "features": features
     }
 
 def get_plan_features(plan_type):
     """Get list of features for a given plan type."""
-    features = []
+    plan_type = plan_type.lower()
+    if plan_type not in PLAN_FEATURES:
+        raise ValueError(f"Invalid plan type: {plan_type}")
     
-    if plan_type.lower() == "basic":
-        features = [
-            '1 Guest Pass',
-            '10% Retail Discount',
-            '1 Game Checkout'
-        ]
-    elif plan_type.lower() == "standard":
-        features = [
-            '2 Guest Passes',
-            '15% Retail Discount',
-            'Mixed Event Access',
-            '1 Additional Member',
-            '2 Game Checkouts'
-        ]
-    elif plan_type.lower() == "family":
-        features = [
-            '4 Guest Passes',
-            '20% Retail Discount',
-            'Mixed Event Access',
-            '3 Additional Members',
-            '4 Game Checkouts'
-        ]
+    features = PLAN_FEATURES[plan_type]
+    feature_list = []
     
-    return features
+    if features['visits_included'] != float('inf'):
+        feature_list.append(f"{features['visits_included']} visits per year")
+    else:
+        feature_list.append("Unlimited visits")
+    
+    if features['guest_passes_annual']:
+        feature_list.append(f"{features['guest_passes_annual']} guest passes per year")
+    
+    if features['guest_cost']:
+        feature_list.append(f"${features['guest_cost']} per additional guest")
+    
+    if features['weekday_only']:
+        feature_list.append("Weekday-only access (Mon-Thu)")
+    
+    if features['event_hosting']:
+        feature_list.append("Host events")
+    
+    if features['coworking_access']:
+        feature_list.append("Co-working space access")
+    
+    if features['24_7_access']:
+        feature_list.append("24/7 access")
+    
+    if features['advance_booking_days']:
+        feature_list.append(f"{features['advance_booking_days']} days advance booking")
+    
+    if features['gift_memberships']:
+        feature_list.append(f"{features['gift_memberships']} gift memberships")
+    
+    if features['family_addon_monthly']:
+        feature_list.append(f"${features['family_addon_monthly']}/month family addon")
+    
+    return feature_list
 
 def calculate_total_guests(M):
     """Calculate total monthly guests for M members"""

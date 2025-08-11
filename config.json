@@ -9,52 +9,67 @@
   "personas": {
     "casual": {
       "price": 8,
-      "guests_per_reserved": 3,
-      "reserved_visits": 1,
-      "event_visits": 0.5,
+      "guests_per_year": 36,
+      "reserved_visits_annual": 12,
+      "event_visits_annual": 6,
       "guest_passes": 0,
-      "guest_discount": 0
+      "guest_discount": 0,
+      "weekday_preference": 0.3,
+      "coworking_hours": 0,
+      "advance_booking_needs": 0
     },
     "everyday": {
       "price": 5,
-      "guests_per_reserved": 3,
-      "reserved_visits": 5,
-      "event_visits": 4,
+      "guests_per_year": 36,
+      "reserved_visits_annual": 96,
+      "event_visits_annual": 48,
       "guest_passes": 0,
-      "guest_discount": 0
+      "guest_discount": 0,
+      "weekday_preference": 0.6,
+      "coworking_hours": 0,
+      "advance_booking_needs": 0
     },
     "families": {
       "price": 15,
-      "guests_per_reserved": 2.5,
-      "reserved_visits": 3,
-      "event_visits": 2,
+      "guests_per_year": 30,
+      "reserved_visits_annual": 36,
+      "event_visits_annual": 24,
       "guest_passes": 0,
-      "guest_discount": 0
+      "guest_discount": 0,
+      "weekday_preference": 0.4,
+      "coworking_hours": 0,
+      "advance_booking_needs": 0
     },
     "hobbyists": {
       "price": 10,
-      "guests_per_reserved": 3,
-      "reserved_visits": 4,
-      "event_visits": 2,
+      "guests_per_year": 36,
+      "reserved_visits_annual": 48,
+      "event_visits_annual": 24,
       "guest_passes": 0,
-      "guest_discount": 0
+      "guest_discount": 0,
+      "weekday_preference": 0.5,
+      "coworking_hours": 0,
+      "advance_booking_needs": 0
     },
     "students": {
       "price": 5,
-      "guests_per_reserved": 3,
-      "reserved_visits": 8,
-      "event_visits": 1,
+      "guests_per_year": 36,
+      "reserved_visits_annual": 96,
+      "event_visits_annual": 12,
       "guest_passes": 0,
-      "guest_discount": 0
+      "guest_discount": 0,
+      "weekday_preference": 0.9,
+      "coworking_hours": 0,
+      "advance_booking_needs": 0
     }
   },
   "spending_assumptions": {
-    "retail_monthly": {
+    "retail_annual": {
       "casual": 0,
-      "everyday": 15,
-      "families": 10,
-      "hobbyists": 15,
-      "students": 5
+      "everyday": 180,
+      "families": 120,
+      "hobbyists": 180,
+      "students": 60
     },
     "snacks": {
       "casual": 10,
@@ -65,29 +80,48 @@
     }
   },
   "plan_prices": {
-    "basic_plan_price": 35,
-    "standard_plan_price": 100,
-    "family_plan_price": 125
+    "visitor_plan_price": 200,
+    "student_plan_price": 100,
+    "member_plan_price": 740,
+    "council_plan_price": 1800
   },
   "plans": {
-    "basic": {
+    "visitor": {
       "features": [
-        "Basic Access",
-        "Limited Guest Passes"
+        "7 visits per year",
+        "18 guest passes per year",
+        "$12 per additional visit/guest"
       ]
     },
-    "standard": {
+    "student": {
       "features": [
-        "Standard Access",
-        "Guest Passes",
-        "Discounts"
+        "Unlimited weekday visits (Mon-Thu)",
+        "$10 per guest",
+        "No weekend access"
       ]
     },
-    "family": {
+    "member": {
       "features": [
-        "Family Access",
-        "More Guest Passes",
-        "Event Priority"
+        "Unlimited visits",
+        "60 guest passes per year",
+        "$10 per additional guest",
+        "Host events",
+        "7 days advance booking",
+        "3 gift memberships",
+        "$75/month family addon"
+      ]
+    },
+    "council": {
+      "features": [
+        "Unlimited visits",
+        "96 guest passes per year",
+        "$10 per additional guest",
+        "Host events",
+        "Co-working space access",
+        "24/7 access",
+        "30 days advance booking",
+        "3 gift memberships",
+        "$75/month family addon"
       ]
     }
   }
