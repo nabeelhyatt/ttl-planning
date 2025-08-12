@@ -99,7 +99,7 @@ def save_config():
         config = request.get_json()
         with open(CONFIG_FILE, 'w') as f:
             json.dump(config, f, indent=2)
-        return jsonify({"status": "success"})
+        return jsonify({"status": "success", "message": "Config updated successfully"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -112,10 +112,59 @@ def get_planner():
         # Check if we can accommodate this many members
         can_accommodate, details = planner.can_accommodate(member_count)
         
-        return jsonify({
-            "can_accommodate": can_accommodate,
-            "details": details
-        })
+        if can_accommodate and details:
+            # Format summary for frontend
+            summary = f"✅ Capacity Analysis for {member_count} Members\n\n"
+            summary += f"• Can accommodate: {'Yes' if can_accommodate else 'No'}\n"
+            summary += f"• 4-top utilization: {details['utilization']['4_top']:.1f}%\n"
+            summary += f"• 6-top utilization: {details['utilization']['6_top']:.1f}%\n"
+            summary += f"• 8-top utilization: {details['utilization']['8_top']:.1f}%\n"
+            summary += f"• 2-top utilization: {details['utilization']['2_top']:.1f}%\n\n"
+            
+            # Add demand summary
+            demands = details['demands']
+            summary += f"Monthly Demands:\n"
+            summary += f"• Reserved 4-tops: {demands['reserved_4_blocks']:.0f} blocks\n"
+            summary += f"• Reserved 6-tops: {demands['reserved_6_blocks']:.0f} blocks\n"
+            summary += f"• Reserved 8-tops: {demands['reserved_8_blocks']:.0f} blocks\n"
+            summary += f"• Mixed seating: {demands['mixed_seat_blocks']:.0f} seat blocks"
+            
+            # Format detailed output
+            output = f"Detailed Capacity Analysis for {member_count} Members\n"
+            output += "=" * 50 + "\n\n"
+            output += "Table Allocation:\n"
+            output += f"4-top tables: {details['tables']['reserved_4_full']:.0f} full, {details['tables']['reserved_4_split']:.0f} split\n"
+            output += f"6-top tables: {details['tables']['reserved_6_full']:.0f} full, {details['tables']['reserved_6_split_3x2']:.0f} split 3x2, {details['tables']['reserved_6_split_4_2']:.0f} split 4+2\n"
+            output += f"8-top tables: {details['tables']['reserved_8_full']:.0f} full, {details['tables']['reserved_8_split']:.0f} split\n"
+            output += f"2-top tables: {details['tables']['reserved_2']:.0f} reserved, {details['tables']['mixed_2']:.0f} mixed\n\n"
+            
+            output += "Mixed Seating Allocation:\n"
+            output += f"4-top mixed: {details['tables']['mixed_4_full']:.0f} full, {details['tables']['mixed_4_split']:.0f} split\n"
+            output += f"6-top mixed: {details['tables']['mixed_6_full']:.0f} full, {details['tables']['mixed_6_split_3x2']:.0f} split 3x2, {details['tables']['mixed_6_split_4_2']:.0f} split 4+2\n"
+            output += f"8-top mixed: {details['tables']['mixed_8_full']:.0f} full, {details['tables']['mixed_8_split']:.0f} split\n\n"
+            
+            output += "Utilization Rates:\n"
+            for table_type, utilization in details['utilization'].items():
+                output += f"{table_type.replace('_', '-').title()}: {utilization:.1f}%\n"
+            
+            return jsonify({
+                "summary": summary,
+                "output": output
+            })
+        else:
+            # Handle case where capacity cannot be accommodated
+            bottleneck = planner.analyze_bottleneck(member_count)
+            summary = f"❌ Cannot accommodate {member_count} members\n\n"
+            summary += f"Bottleneck: {bottleneck['table_type']} tables\n"
+            summary += f"Total utilization: {bottleneck['total_utilization']:.1f}%\n"
+            if bottleneck['persona']:
+                summary += f"Highest demand from: {bottleneck['persona']} persona"
+            
+            return jsonify({
+                "summary": summary,
+                "output": f"Capacity analysis failed for {member_count} members. Bottleneck analysis: {bottleneck}"
+            })
+            
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -124,7 +173,45 @@ def get_optimizer():
     try:
         optimizer = plan_optimizer.PlanOptimizer()
         results = optimizer.optimize_pricing()
-        return jsonify(results)
+        
+        # Format summary for frontend
+        summary = "📊 Plan Optimization Results\n\n"
+        summary += "Best value plans for each persona:\n"
+        
+        # Find best plan for each persona
+        persona_best_plans = {}
+        for plan in results:
+            plan_type = plan['plan_type']
+            for persona, ratio in plan['value_ratios'].items():
+                if persona not in persona_best_plans or ratio > persona_best_plans[persona]['ratio']:
+                    persona_best_plans[persona] = {
+                        'plan': plan_type,
+                        'ratio': ratio,
+                        'price': plan['price']
+                    }
+        
+        for persona, best in persona_best_plans.items():
+            summary += f"• {persona.title()}: {best['plan'].title()} plan (${best['price']:.0f}, {best['ratio']:.1f}x value)\n"
+        
+        # Format detailed output
+        output = "Detailed Plan Analysis\n"
+        output += "=" * 30 + "\n\n"
+        
+        for plan in results:
+            output += f"{plan['plan_type'].title()} Plan - ${plan['price']:.0f}\n"
+            output += "-" * 20 + "\n"
+            output += "Features:\n"
+            for feature in plan['features']:
+                output += f"• {feature}\n"
+            output += "\nValue Ratios:\n"
+            for persona, ratio in plan['value_ratios'].items():
+                output += f"• {persona.title()}: {ratio:.2f}x\n"
+            output += "\n"
+        
+        return jsonify({
+            "summary": summary,
+            "output": output
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -133,16 +220,119 @@ def get_personas():
     try:
         optimizer = persona_optimization.PersonaOptimizer()
         results = optimizer.optimize_personas()
-        return jsonify(results)
+        
+        # Format summary for frontend
+        summary = "👥 Persona Analysis Results\n\n"
+        summary += "Best plan matches for each persona:\n"
+        
+        for persona in results:
+            persona_type = persona['persona_type'].title()
+            best_plans = persona['best_plans']
+            if best_plans:
+                summary += f"• {persona_type}: {', '.join([plan.title() for plan in best_plans])}\n"
+            else:
+                summary += f"• {persona_type}: No plans provide >1x value\n"
+        
+        # Format detailed output
+        output = "Detailed Persona Analysis\n"
+        output += "=" * 30 + "\n\n"
+        
+        for persona in results:
+            output += f"{persona['persona_type'].upper()}\n"
+            output += "-" * 30 + "\n"
+            output += f"Price per visit: ${persona['price_per_visit']}\n\n"
+            
+            output += "Traits:\n"
+            for trait in persona['traits']:
+                output += f"• {trait}\n"
+            output += "\n"
+            
+            output += "Plan Value Ratios:\n"
+            for plan, ratio in persona['value_ratios'].items():
+                output += f"• {plan.title()}: {ratio:.2f}x value\n"
+            output += "\n"
+            
+            if persona['best_plans']:
+                output += "Recommended Plans:\n"
+                for plan in persona['best_plans']:
+                    output += f"• {plan.title()}\n"
+            output += "\n"
+        
+        return jsonify({
+            "summary": summary,
+            "output": output
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/revenue')
 def get_revenue():
     try:
-        planner = revenue_planner.RevenuePlanner()
-        results = planner.calculate_annual_revenue()
-        return jsonify(results)
+        revenue_planner_instance = revenue_planner.RevenuePlanner()
+        results = revenue_planner_instance.calculate_annual_revenue()
+        
+        # Calculate member counts by persona
+        total_members = 300  # Default member count
+        member_counts = {
+            persona: int(total_members * pct) 
+            for persona, pct in planner.PERSONA_DISTRIBUTION.items()
+        }
+        
+        # Format persona revenues for frontend
+        persona_revenues = {}
+        for persona, count in member_counts.items():
+            # Get optimal plan for this persona
+            plan_type, plan_price = revenue_planner_instance.get_optimal_plan_for_persona(persona)
+            plan_features = planner.PLAN_FEATURES[plan_type]
+            
+            # Calculate membership revenue
+            membership_revenue = count * plan_price / 12  # Monthly
+            
+            # Calculate extras (guests, retail, snacks)
+            extras_revenue = 0
+            
+            # Guest revenue
+            if plan_features.get('guest_passes_annual'):
+                additional_guests = max(
+                    0,
+                    planner.PERSONAS[persona]['guests_per_year'] - plan_features.get('guest_passes_annual', 0)
+                )
+                extras_revenue += count * (
+                    additional_guests * plan_features.get('additional_guest_cost', 10) / 12
+                )
+            else:
+                extras_revenue += count * (
+                    planner.PERSONAS[persona]['guests_per_year'] * plan_features.get('guest_cost', 10) / 12
+                )
+            
+            # Retail and snack revenue
+            extras_revenue += count * (
+                planner.SPENDING['retail_annual'][persona] / 12 +
+                planner.PERSONAS[persona]['reserved_visits_annual'] * 
+                planner.SPENDING['snacks'][persona] / 12
+            )
+            
+            persona_revenues[persona] = {
+                'member_count': count,
+                'membership': membership_revenue,
+                'extras': extras_revenue,
+                'total': membership_revenue + extras_revenue
+            }
+        
+        # Format revenue breakdown for frontend
+        revenue_breakdown = {
+            'memberships': results['membership_revenue'] / 12,  # Monthly
+            'guests': results['guest_revenue'] / 12,  # Monthly
+            'mixed_events': 0,  # Not calculated in current model
+            'snacks': results['snack_revenue'] / 12,  # Monthly
+            'retail': results['retail_revenue'] / 12  # Monthly
+        }
+        
+        return jsonify({
+            'persona_revenues': persona_revenues,
+            'revenue_breakdown': revenue_breakdown,
+            'total_revenue': results['monthly_average']
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -186,6 +376,37 @@ def get_financial_summary():
         dashboard = FinancialDashboard()
         metrics = dashboard.generate_summary_metrics(member_count)
         
+        # Transform expense breakdown to include monthly amounts
+        expense_calculator = ExpenseCalculator()
+        monthly_expenses_detail = expense_calculator.calculate_monthly_expenses()
+        expense_breakdown = {}
+        
+        # Calculate category totals
+        category_totals = monthly_expenses_detail.get('total_by_category', {
+            'facilities': 0,
+            'payroll': 0,
+            'software': 0
+        })
+        
+        for category, percentage in metrics['expense_breakdown'].items():
+            if category in category_totals:
+                expense_breakdown[category] = {
+                    'monthly': category_totals[category],
+                    'percentage': percentage
+                }
+        
+        # Transform revenue breakdown to use actual dollar amounts
+        revenue_breakdown = {}
+        monthly_revenue = metrics['monthly']['revenue']
+        
+        if 'revenue_breakdown' in metrics:
+            for category, percentage in metrics['revenue_breakdown'].items():
+                revenue_breakdown[category] = monthly_revenue * (percentage / 100)
+        
+        # Update metrics with transformed data
+        metrics['expense_breakdown'] = expense_breakdown
+        metrics['revenue_breakdown'] = revenue_breakdown
+        
         return jsonify(metrics)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -201,4 +422,7 @@ def get_break_even():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(port=3002, debug=True)
+    import os
+    port = int(os.environ.get('PORT', 3002))
+    debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    app.run(host='0.0.0.0', port=port, debug=debug)

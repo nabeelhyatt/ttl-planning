@@ -15,7 +15,7 @@ class PersonaOptimizer:
         for persona_type, persona_data in planner.PERSONAS.items():
             # Calculate value ratios for different plans
             value_ratios = {}
-            for plan_type in ['basic', 'standard', 'family']:
+            for plan_type in ['visitor', 'student', 'member', 'council']:
                 value_ratios[plan_type] = self.calculator.calculate_value_ratio(persona_type, plan_type)
             
             # Find best fit plans

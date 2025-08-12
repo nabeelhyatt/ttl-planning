@@ -318,6 +318,36 @@
             align-items: center;
         }
 
+        /* Notification Modal Styles */
+        .notification-modal {
+            position: fixed;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #28a745;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            font-size: 16px;
+            font-weight: 500;
+            z-index: 1000;
+            transition: top 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .notification-modal.show {
+            top: 30px;
+        }
+
+        .notification-modal svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+
         .persona-name::before {
             content: '';
             width: 8px;
@@ -382,6 +412,14 @@
     </style>
 </head>
 <body>
+    <!-- Notification Modal -->
+    <div id="notification-modal" class="notification-modal">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+        </svg>
+        <span id="notification-text">Configuration saved successfully!</span>
+    </div>
+    
     <h1>Tabletop Library Planning Tools</h1>
     
     <div class="tab-container">
@@ -389,6 +427,7 @@
         <a href="#" class="tab" id="optimizer-tab" onclick="switchTab('optimizer')">Plans</a>
         <a href="#" class="tab" id="personas-tab" onclick="switchTab('personas')">Personas</a>
         <a href="#" class="tab" id="revenue-tab" onclick="switchTab('revenue')">Revenue</a>
+        <a href="#" class="tab" id="financial-tab" onclick="switchTab('financial')">Financial</a>
         <a href="#" class="tab" id="config-tab" onclick="switchTab('config')">Setup</a>
     </div>
 
@@ -510,6 +549,26 @@
         </div>
     </div>
 
+    <div class="content" id="financial-content">
+        <h2>Financial Dashboard</h2>
+        <div class="revenue-section">
+            <h3>Profit & Loss Summary</h3>
+            <div id="financial-summary"></div>
+        </div>
+        <div class="revenue-section">
+            <h3>Revenue Breakdown</h3>
+            <div id="financial-revenue-breakdown"></div>
+        </div>
+        <div class="revenue-section">
+            <h3>Expense Breakdown</h3>
+            <div id="financial-expense-breakdown"></div>
+        </div>
+        <div class="revenue-section">
+            <h3>Break-Even Analysis</h3>
+            <div id="break-even-analysis"></div>
+        </div>
+    </div>
+
     <script>
         // Helper function for authenticated fetch requests
         function authenticatedFetch(url, options = {}) {
@@ -529,6 +588,25 @@
                 console.error('Fetch error:', error);
                 throw error;
             });
+        }
+
+        function showNotification(message, isSuccess = true) {
+            const modal = document.getElementById('notification-modal');
+            const textElement = document.getElementById('notification-text');
+            
+            // Update the message
+            textElement.textContent = message;
+            
+            // Update the color based on success/error
+            modal.style.backgroundColor = isSuccess ? '#28a745' : '#dc3545';
+            
+            // Show the modal
+            modal.classList.add('show');
+            
+            // Hide after 1.5 seconds
+            setTimeout(() => {
+                modal.classList.remove('show');
+            }, 1500);
         }
 
         function switchTab(tabName) {
@@ -553,6 +631,8 @@
                 loadData('personas');
             } else if (tabName === 'revenue') {
                 loadRevenue();
+            } else if (tabName === 'financial') {
+                loadFinancial();
             } else if (tabName === 'config') {
                 loadConfigData();
             }
@@ -715,28 +795,42 @@
                     detailsDiv.innerHTML = '';
                     for (const [persona, details] of Object.entries(config.personas)) {
                         const displayName = persona.charAt(0).toUpperCase() + persona.slice(1);
+                        // Convert annual values to monthly for display
+                        const guestsPerMonth = (details.guests_per_year || 0) / 12;
+                        const reservedVisitsMonth = (details.reserved_visits_annual || 0) / 12;
+                        const eventVisitsMonth = (details.event_visits_annual || 0) / 12;
+                        
                         detailsDiv.innerHTML += `
                             <tr>
                                 <td><span class="persona-name ${persona}">${displayName}</span></td>
                                 <td><input type="number" class="airtable-input" id="price_${persona}" value="${details.price}" step="1" min="0"></td>
-                                <td><input type="number" class="airtable-input" id="guests_${persona}" value="${details.guests_per_reserved}" step="0.5" min="0"></td>
-                                <td><input type="number" class="airtable-input" id="reserved_${persona}" value="${details.reserved_visits}" step="1" min="0"></td>
-                                <td><input type="number" class="airtable-input" id="event_${persona}" value="${details.event_visits}" step="0.5" min="0"></td>
-                                <td><input type="number" class="airtable-input" id="passes_${persona}" value="${details.guest_passes}" step="1" min="0"></td>
-                                <td><input type="number" class="airtable-input" id="discount_${persona}" value="${(details.guest_discount * 100).toFixed(1)}" step="5" min="0" max="100">%</td>
+                                <td><input type="number" class="airtable-input" id="guests_${persona}" value="${guestsPerMonth.toFixed(1)}" step="0.5" min="0"></td>
+                                <td><input type="number" class="airtable-input" id="reserved_${persona}" value="${reservedVisitsMonth.toFixed(0)}" step="1" min="0"></td>
+                                <td><input type="number" class="airtable-input" id="event_${persona}" value="${eventVisitsMonth.toFixed(1)}" step="0.5" min="0"></td>
+                                <td><input type="number" class="airtable-input" id="passes_${persona}" value="${details.guest_passes || 0}" step="1" min="0"></td>
+                                <td><input type="number" class="airtable-input" id="discount_${persona}" value="${((details.guest_discount || 0) * 100).toFixed(1)}" step="5" min="0" max="100">%</td>
                             </tr>`;
                     }
 
                     // Populate spending assumptions
                     const spendingDiv = document.getElementById('spending-assumptions');
                     spendingDiv.innerHTML = '';
-                    for (const [persona, retail] of Object.entries(config.spending_assumptions.retail_monthly)) {
+                    // Check if retail_monthly exists, otherwise calculate from retail_annual
+                    const retailData = config.spending_assumptions.retail_monthly || {};
+                    if (Object.keys(retailData).length === 0 && config.spending_assumptions.retail_annual) {
+                        // Convert annual to monthly
+                        for (const [persona, annual] of Object.entries(config.spending_assumptions.retail_annual)) {
+                            retailData[persona] = annual / 12;
+                        }
+                    }
+                    
+                    for (const [persona, retail] of Object.entries(retailData)) {
                         const displayName = persona.charAt(0).toUpperCase() + persona.slice(1);
                         const snacks = config.spending_assumptions.snacks[persona];
                         spendingDiv.innerHTML += `
                             <tr>
                                 <td><span class="persona-name ${persona}">${displayName}</span></td>
-                                <td><input type="number" class="airtable-input" id="retail_${persona}" value="${retail}" step="0.01" min="0"></td>
+                                <td><input type="number" class="airtable-input" id="retail_${persona}" value="${retail.toFixed(2)}" step="0.01" min="0"></td>
                                 <td><input type="number" class="airtable-input" id="snacks_${persona}" value="${snacks}" step="0.01" min="0"></td>
                             </tr>`;
                     }
@@ -768,12 +862,123 @@
                 });
         }
 
+        async function loadFinancial() {
+            try {
+                // Load financial summary
+                const summaryResponse = await fetch('/api/financial-summary?members=300');
+                const summaryData = await summaryResponse.json();
+                
+                // Update profit & loss summary
+                try {
+                    const summaryDiv = document.getElementById('financial-summary');
+                    summaryDiv.innerHTML = `
+                        <div class="revenue-item">
+                            <div>Monthly Revenue</div>
+                            <div>$${summaryData.monthly.revenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        </div>
+                        <div class="revenue-item">
+                            <div>Monthly Expenses</div>
+                            <div>$${summaryData.monthly.expenses.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        </div>
+                        <div class="revenue-item">
+                            <div>Monthly Net Profit</div>
+                            <div style="color: ${summaryData.monthly.net_profit >= 0 ? 'green' : 'red'}">
+                                $${summaryData.monthly.net_profit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </div>
+                        </div>
+                        <div class="revenue-item">
+                            <div>Profit Margin</div>
+                            <div style="color: ${summaryData.monthly.profit_margin >= 0 ? 'green' : 'red'}">
+                                ${summaryData.monthly.profit_margin.toFixed(1)}%
+                            </div>
+                        </div>
+                    `;
+                } catch (plError) {
+                    console.error('Error updating P&L summary:', plError);
+                    document.getElementById('financial-summary').innerHTML = '<p>Error loading profit & loss summary</p>';
+                }
+                
+                // Update revenue breakdown
+                const revenueBreakdownDiv = document.getElementById('financial-revenue-breakdown');
+                revenueBreakdownDiv.innerHTML = '';
+                
+                for (const [category, amount] of Object.entries(summaryData.revenue_breakdown)) {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'revenue-item';
+                    itemDiv.innerHTML = `
+                        <div>${category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
+                        <div>$${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                    `;
+                    revenueBreakdownDiv.appendChild(itemDiv);
+                }
+                
+                // Update expense breakdown
+                const expenseBreakdownDiv = document.getElementById('financial-expense-breakdown');
+                expenseBreakdownDiv.innerHTML = '';
+                
+                for (const [category, data] of Object.entries(summaryData.expense_breakdown)) {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'revenue-item';
+                    itemDiv.innerHTML = `
+                        <div>${category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
+                        <div>$${data.monthly.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        <div class="percentage">${data.percentage.toFixed(1)}%</div>
+                    `;
+                    expenseBreakdownDiv.appendChild(itemDiv);
+                }
+                
+                // Load break-even analysis
+                try {
+                    const breakEvenResponse = await fetch('/api/break-even');
+                    const breakEvenData = await breakEvenResponse.json();
+                    
+                    const breakEvenDiv = document.getElementById('break-even-analysis');
+                    breakEvenDiv.innerHTML = `
+                        <div class="revenue-item">
+                            <div>Break-Even Members</div>
+                            <div>${breakEvenData.break_even_members}</div>
+                        </div>
+                        <div class="revenue-item">
+                            <div>Current Members</div>
+                            <div>300</div>
+                        </div>
+                        <div class="revenue-item">
+                            <div>Gap to Break-Even</div>
+                            <div style="color: ${breakEvenData.current_gap <= 0 ? 'green' : 'red'}">
+                                ${breakEvenData.current_gap <= 0 ? 'Profitable!' : `${breakEvenData.break_even_members - 300} more members needed`}
+                            </div>
+                        </div>
+                        <div class="revenue-item">
+                            <div>Break-Even Monthly Revenue</div>
+                            <div>$${breakEvenData.monthly_revenue_at_break_even.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        </div>
+                    `;
+                } catch (beError) {
+                    console.error('Error loading break-even analysis:', beError);
+                    document.getElementById('break-even-analysis').innerHTML = '<p>Error loading break-even analysis</p>';
+                }
+                
+            } catch (error) {
+                console.error('Error loading financial data:', error);
+                // More specific error handling - don't replace content that already loaded
+                const summaryDiv = document.getElementById('financial-summary');
+                if (summaryDiv && summaryDiv.innerHTML.trim() === '') {
+                    summaryDiv.innerHTML = '<p>Error loading profit & loss summary</p>';
+                }
+                const breakEvenDiv = document.getElementById('break-even-analysis');
+                if (breakEvenDiv && breakEvenDiv.innerHTML.trim() === '') {
+                    breakEvenDiv.innerHTML = '<p>Error loading break-even analysis</p>';
+                }
+            }
+        }
+
         function saveConfig() {
             const config = {
                 distribution: {},
                 personas: {},
                 spending_assumptions: {
                     retail_monthly: {},
+                    retail_annual: {},
                     snacks: {}
                 },
                 plan_prices: {}
@@ -793,17 +998,18 @@
                 
                 const persona = personaSpan.textContent.toLowerCase();
                 try {
+                    // Convert monthly values back to annual for storage
                     config.personas[persona] = {
                         price: parseFloat(row.querySelector(`#price_${persona}`).value),
-                        guests_per_reserved: parseFloat(row.querySelector(`#guests_${persona}`).value),
-                        reserved_visits: parseInt(row.querySelector(`#reserved_${persona}`).value),
-                        event_visits: parseFloat(row.querySelector(`#event_${persona}`).value),
+                        guests_per_year: parseFloat(row.querySelector(`#guests_${persona}`).value) * 12,
+                        reserved_visits_annual: parseInt(row.querySelector(`#reserved_${persona}`).value) * 12,
+                        event_visits_annual: parseFloat(row.querySelector(`#event_${persona}`).value) * 12,
                         guest_passes: parseInt(row.querySelector(`#passes_${persona}`).value),
                         guest_discount: parseFloat(row.querySelector(`#discount_${persona}`).value) / 100
                     };
                 } catch (e) {
                     console.error(`Error processing persona details for ${persona}:`, e);
-                    alert(`Error reading details for persona: ${persona}. Check input field exists and has a value.`);
+                    showNotification(`Error reading details for persona: ${persona}. Check input field exists and has a value.`, false);
                     dataCollectionError = true;
                 }
             });
@@ -815,25 +1021,29 @@
                 
                 const persona = personaSpan.textContent.toLowerCase();
                 try {
-                    config.spending_assumptions.retail_monthly[persona] = parseFloat(row.querySelector(`#retail_${persona}`).value);
+                    // Store as both monthly and annual for compatibility
+                    const monthlyRetail = parseFloat(row.querySelector(`#retail_${persona}`).value);
+                    config.spending_assumptions.retail_monthly[persona] = monthlyRetail;
+                    config.spending_assumptions.retail_annual[persona] = monthlyRetail * 12;
                     config.spending_assumptions.snacks[persona] = parseFloat(row.querySelector(`#snacks_${persona}`).value);
                 } catch (e) {
                     console.error(`Error processing spending assumptions for ${persona}:`, e);
-                    alert(`Error reading spending assumptions for persona: ${persona}. Check input field exists and has a value.`);
+                    showNotification(`Error reading spending assumptions for persona: ${persona}. Check input field exists and has a value.`, false);
                     dataCollectionError = true;
                 }
             });
 
             // Collect plan prices
             try {
-                config.plan_prices = {
-                    basic_plan_price: parseFloat(document.querySelector('#basic_plan_price').value),
-                    standard_plan_price: parseFloat(document.querySelector('#standard_plan_price').value),
-                    family_plan_price: parseFloat(document.querySelector('#family_plan_price').value)
-                };
+                config.plan_prices = {};
+                document.querySelectorAll('#plans input[type="number"]').forEach(input => {
+                    if (input.id && input.id.includes('_plan_price')) {
+                        config.plan_prices[input.id] = parseFloat(input.value);
+                    }
+                });
             } catch (e) {
                 console.error(`Error processing plan prices:`, e);
-                alert(`Error reading plan prices. Check input fields exist and have values.`);
+                showNotification(`Error reading plan prices. Check input fields exist and have values.`, false);
                 dataCollectionError = true;
             }
 
@@ -855,7 +1065,7 @@
             .then(data => {
                 console.log('Save response:', data);
                 if (data.message === 'Config updated successfully') {
-                    alert('Configuration saved successfully!');
+                    showNotification('Configuration saved successfully!');
                     // Refresh relevant data displays
                     loadConfigData(); // Reload config tab fields
                     loadData('planner'); // Reload planner analysis
@@ -864,16 +1074,16 @@
                     loadData('revenue'); // Reload revenue projection
                 } else if (data.error) {
                     // Handle server-side validation errors or other issues
-                    alert('Error saving configuration: ' + data.error);
+                    showNotification('Error saving configuration: ' + data.error, false);
                 } else {
                     // Handle unexpected server response
-                    alert('Received unexpected response from server.');
+                    showNotification('Received unexpected response from server.', false);
                 }
             })
             .catch((error) => {
                 // Handle network errors or issues with the fetch itself
                 console.error('Error during save fetch:', error);
-                alert('Error sending save request to server.');
+                showNotification('Error sending save request to server.', false);
             });
         }
 
@@ -881,7 +1091,7 @@
         document.addEventListener('DOMContentLoaded', (event) => {
             const lastTab = localStorage.getItem('lastActiveTab');
             // Check if a valid tab ID was stored
-            const validTabs = ['planner', 'optimizer', 'personas', 'revenue', 'config'];
+            const validTabs = ['planner', 'optimizer', 'personas', 'revenue', 'financial', 'config'];
             if (lastTab && validTabs.includes(lastTab)) {
                 console.log('Restoring last active tab:', lastTab);
                 switchTab(lastTab); // Activate the last used tab
